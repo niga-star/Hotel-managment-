@@ -1161,6 +1161,8 @@ app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
     payment_method = 'telebirr',
     payment_mode = 'manual_receipt', // 'manual_receipt' or 'gateway'
     promo_code = null,
+    meal_plan = 'room_only',
+    addons = [],
     is_walk_in = 0
   } = req.body;
 
@@ -1215,10 +1217,31 @@ app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
       });
     }
 
-    // 2. Calculate Nights & Dynamic Promo Pricing
+    // 2. Calculate Nights & Dynamic Meal Plans / Addons / Promo Pricing
     const nights = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-    let totalPriceEtb = parseFloat(room.price_etb) * nights;
-    let totalPriceUsd = parseFloat(room.price_usd) * nights;
+    const mealPlanRates = {
+      'room_only': 0,
+      'bed_breakfast': 650,
+      'half_board': 1450,
+      'full_board': 2200
+    };
+    const guestCountTotal = Math.max(1, parseInt(adults || 1) + parseInt(children || 0));
+    const mealTotalEtb = (mealPlanRates[meal_plan] || 0) * guestCountTotal * nights;
+
+    const addonRates = {
+      'airport_shuttle': 1200,
+      'coffee_ceremony': 850,
+      'spa_massage': 2800,
+      'honeymoon_setup': 1600
+    };
+    let addonsTotalEtb = 0;
+    const selectedAddons = Array.isArray(addons) ? addons : [];
+    for (const add of selectedAddons) {
+      if (addonRates[add]) addonsTotalEtb += addonRates[add];
+    }
+
+    let totalPriceEtb = (parseFloat(room.price_etb) * nights) + mealTotalEtb + addonsTotalEtb;
+    let totalPriceUsd = Math.round(totalPriceEtb / 64);
 
     if (promo_code) {
       const code = promo_code.trim().toUpperCase();
@@ -1289,16 +1312,18 @@ app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
       holdExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 mins hold
     }
 
+    const bookingNotes = JSON.stringify({ meal_plan, addons: selectedAddons });
+
     await conn.query(`
       INSERT INTO bookings (
         id, reference_code, guest_id, room_id, check_in_date, check_out_date,
         adults_count, children_count, total_price_etb, total_price_usd,
-        booking_status, payment_status, is_walk_in, qr_verification_hash, hold_expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        booking_status, payment_status, is_walk_in, qr_verification_hash, hold_expires_at, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       bookingId, referenceCode, guestId, room.id, check_in_date, check_out_date,
       adults, children, totalPriceEtb, totalPriceUsd,
-      initialBookingStatus, initialPaymentStatus, is_walk_in, qrHash, holdExpiresAt
+      initialBookingStatus, initialPaymentStatus, is_walk_in, qrHash, holdExpiresAt, bookingNotes
     ]);
 
     // 5. Record Payment in MySQL

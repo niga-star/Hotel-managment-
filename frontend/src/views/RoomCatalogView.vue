@@ -256,6 +256,73 @@
           </div>
         </div>
 
+        <!-- Meal Plan Selection -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="text-xs font-bold text-slate-700 block">🍽️ Dining & Meal Plan</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button 
+              type="button" 
+              @click="selectedMealPlan = 'room_only'"
+              :class="selectedMealPlan === 'room_only' ? 'border-[#0B4D34] bg-emerald-50/60 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-600'"
+              class="p-2 rounded-xl border text-left transition cursor-pointer">
+              <span class="block font-bold">Room Only</span>
+              <span class="text-[10px] text-slate-400">+ETB 0</span>
+            </button>
+            <button 
+              type="button" 
+              @click="selectedMealPlan = 'bed_breakfast'"
+              :class="selectedMealPlan === 'bed_breakfast' ? 'border-[#0B4D34] bg-emerald-50/60 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-600'"
+              class="p-2 rounded-xl border text-left transition cursor-pointer">
+              <span class="block font-bold">Bed & Breakfast</span>
+              <span class="text-[10px] text-slate-400">+ETB 650/guest/nt</span>
+            </button>
+            <button 
+              type="button" 
+              @click="selectedMealPlan = 'half_board'"
+              :class="selectedMealPlan === 'half_board' ? 'border-[#0B4D34] bg-emerald-50/60 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-600'"
+              class="p-2 rounded-xl border text-left transition cursor-pointer">
+              <span class="block font-bold">Half Board</span>
+              <span class="text-[10px] text-slate-400">+ETB 1,450/guest/nt</span>
+            </button>
+            <button 
+              type="button" 
+              @click="selectedMealPlan = 'full_board'"
+              :class="selectedMealPlan === 'full_board' ? 'border-[#0B4D34] bg-emerald-50/60 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-600'"
+              class="p-2 rounded-xl border text-left transition cursor-pointer">
+              <span class="block font-bold">Full Board</span>
+              <span class="text-[10px] text-slate-400">+ETB 2,200/guest/nt</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Concierge Add-On Packages -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="text-xs font-bold text-slate-700 block">✨ Concierge & Experience Add-ons</label>
+          <div class="space-y-1.5 text-xs">
+            <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" v-model="selectedAddons" value="airport_shuttle" class="rounded accent-[#0B4D34]" />
+                <span>🚗 VIP Airport Chauffeur Shuttle</span>
+              </div>
+              <span class="font-bold text-[#0B4D34] text-[11px]">+ETB 1,200</span>
+            </label>
+            <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" v-model="selectedAddons" value="coffee_ceremony" class="rounded accent-[#0B4D34]" />
+                <span>☕ Cultural Coffee Ceremony</span>
+              </div>
+              <span class="font-bold text-[#0B4D34] text-[11px]">+ETB 850</span>
+            </label>
+            <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" v-model="selectedAddons" value="spa_massage" class="rounded accent-[#0B4D34]" />
+                <span>🌿 Couple's Steam & Massage</span>
+              </div>
+              <span class="font-bold text-[#0B4D34] text-[11px]">+ETB 2,800</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Promo Code / Voucher Box -->
         <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
           <div class="flex items-center justify-between">
@@ -495,6 +562,37 @@ const nights = computed(() => {
 
 const selectedRoom = ref(null);
 const guestCount = ref({ adults: 2, children: 0 });
+const selectedMealPlan = ref('room_only');
+const selectedAddons = ref([]);
+
+const mealPlanRates = {
+  'room_only': 0,
+  'bed_breakfast': 650,
+  'half_board': 1450,
+  'full_board': 2200
+};
+
+const addonRates = {
+  'airport_shuttle': 1200,
+  'coffee_ceremony': 850,
+  'spa_massage': 2800,
+  'honeymoon_setup': 1600
+};
+
+const mealTotalEtb = computed(() => {
+  const perPersonPerNight = mealPlanRates[selectedMealPlan.value] || 0;
+  const guestTotal = (guestCount.value.adults || 1) + (guestCount.value.children || 0);
+  return perPersonPerNight * guestTotal * nights.value;
+});
+
+const addonsTotalEtb = computed(() => {
+  let sum = 0;
+  for (const add of selectedAddons.value) {
+    if (addonRates[add]) sum += addonRates[add];
+  }
+  return sum;
+});
+
 const promoInput = ref('');
 const promoChecking = ref(false);
 const promoMessage = ref('');
@@ -511,12 +609,12 @@ const isWeekendStay = computed(() => {
 
 const subtotalEtb = computed(() => {
   if (!selectedRoom.value) return 0;
-  return selectedRoom.value.price_etb * nights.value;
+  return (selectedRoom.value.price_etb * nights.value) + mealTotalEtb.value + addonsTotalEtb.value;
 });
 
 const subtotalUsd = computed(() => {
   if (!selectedRoom.value) return 0;
-  return selectedRoom.value.price_usd * nights.value;
+  return Math.round(subtotalEtb.value / 64);
 });
 
 const discountAmountEtb = computed(() => {
@@ -708,6 +806,8 @@ async function submitBooking() {
       adults: guestCount.value.adults,
       children: guestCount.value.children,
       promo_code: appliedPromo.value ? appliedPromo.value.code : null,
+      meal_plan: selectedMealPlan.value,
+      addons: selectedAddons.value,
       payment_method: paymentMethod.value,
       payment_mode: paymentMode.value,
       guest_name: guestForm.value.name.trim() || 'Valued Guest',
