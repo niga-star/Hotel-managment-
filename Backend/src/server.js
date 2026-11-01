@@ -11,6 +11,7 @@ const pool = require('./mysql_db');
 const paymentService = require('./services/paymentService');
 const { upload, uploadReceipt, deleteImageFile } = require('./services/uploadService');
 const notificationService = require('./services/notificationService');
+const auditService = require('./services/auditService');
 const { validateFullName, validateEmail, validatePassword, validatePhoneNumber } = require('./utils/validation');
 const { authLimiter, resendLimiter } = require('./middleware/rateLimiter');
 
@@ -1777,6 +1778,16 @@ app.post('/api/v1/bookings/:id/check-in', requireStaffOrAdmin, async (req, res) 
 
     // Update Room status to 'occupied'
     await conn.query("UPDATE rooms SET status = 'occupied' WHERE id = ?", [booking.room_id]);
+    auditService.logAction({
+      userId: staffUserId,
+      userName: req.user?.full_name || 'Front Desk Staff',
+      userRole: req.user?.role || 'staff',
+      action: 'guest_check_in',
+      resourceType: 'booking',
+      resourceId: booking.id,
+      details: { reference_code: booking.reference_code, room: booking.room_number, guest: booking.full_name },
+      ipAddress: req.ip
+    });
 
     await conn.commit();
 
@@ -1921,6 +1932,16 @@ app.post('/api/v1/bookings/:id/check-out', requireStaffOrAdmin, async (req, res)
 
     // Make room available for future guests & mark room dirty for housekeeping
     await conn.query("UPDATE rooms SET status = 'available', housekeeping_status = 'dirty' WHERE id = ?", [booking.room_id]);
+    auditService.logAction({
+      userId: staffUserId,
+      userName: req.user?.full_name || 'Front Desk Staff',
+      userRole: req.user?.role || 'staff',
+      action: 'guest_check_out',
+      resourceType: 'booking',
+      resourceId: booking.id,
+      details: { reference_code: booking.reference_code, room: booking.room_number, guest: booking.full_name },
+      ipAddress: req.ip
+    });
 
     await conn.commit();
 
@@ -2497,6 +2518,17 @@ app.post('/api/v1/payments/simulate-webhook', async (req, res) => {
 // 6. REAL DATABASE AGGREGATED DASHBOARD STATS (Item 4)
 // Zero hardcoded numbers - 100% database driven
 // ==========================================
+
+// Security & Operations Audit Trail
+app.get('/api/v1/admin/audit-logs', requireStaffOrAdmin, async (req, res) => {
+  try {
+    const limit = req.query.limit || 100;
+    const logs = await auditService.getRecentLogs(limit);
+    res.json({ logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/api/v1/admin/dashboard-stats', requireStaffOrAdmin, async (req, res) => {
   try {
