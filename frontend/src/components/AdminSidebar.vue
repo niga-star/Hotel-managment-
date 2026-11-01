@@ -9,13 +9,13 @@
         <button
           v-for="item in navItems"
           :key="item.id"
-          @click="$emit('select-view', item.id)"
+          @click="navigate(item)"
           :class="[
-            currentView === item.id
+            isActive(item)
               ? 'bg-[#107550] text-white font-semibold shadow-inner border-l-4 border-[#D4A329]'
               : 'text-emerald-100/90 hover:bg-[#064E3B] hover:text-white'
           ]"
-          class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all group">
+          class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all group cursor-pointer">
           <span class="text-lg opacity-90 group-hover:scale-110 transition-transform">{{ item.icon }}</span>
           <span>{{ item.label }}</span>
           <span 
@@ -43,22 +43,40 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+
+const router = useRouter();
+const route = useRoute();
+
+const props = defineProps({
   currentView: {
     type: String,
     default: 'dashboard'
   }
 });
 
-defineEmits(['select-view']);
+const emit = defineEmits(['select-view']);
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'manage-rooms', label: 'Manage Rooms', icon: '🛏️' },
-  { id: 'bookings', label: 'Bookings Desk', icon: '📅' },
-  { id: 'check-in', label: 'Check-In Desk', icon: '🛎️' },
-  { id: 'check-out', label: 'Check-Out Desk', icon: '🚪' },
-  { id: 'payments', label: 'Payments', icon: '💳' },
-  { id: 'reports', label: 'Reports', icon: '📈' }
+  { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/admin/dashboard' },
+  { id: 'manage-rooms', label: 'Manage Rooms', icon: '🛏️', path: '/admin/rooms' },
+  { id: 'bookings', label: 'Bookings Desk', icon: '📅', path: '/admin/bookings' },
+  { id: 'check-in', label: 'Check-In Desk', icon: '🛎️', path: '/admin/check-in' },
+  { id: 'check-out', label: 'Check-Out Desk', icon: '🚪', path: '/admin/check-out' },
+  { id: 'payments', label: 'Payments', icon: '💳', path: '/admin/payments' },
+  { id: 'reports', label: 'Reports', icon: '📈', path: '/admin/reports' }
 ];
+
+function isActive(item) {
+  if (route && route.path === item.path) return true;
+  return props.currentView === item.id;
+}
+
+function navigate(item) {
+  emit('select-view', item.id);
+  if (router && item.path) {
+    router.push(item.path);
+  }
+}
 </script>

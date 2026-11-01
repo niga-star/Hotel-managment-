@@ -2,7 +2,7 @@
   <div class="space-y-8 max-w-6xl mx-auto">
     <!-- Back to catalog button -->
     <button 
-      @click="$emit('back')"
+      @click="handleBack"
       class="text-xs font-semibold text-[#0B4D34] hover:underline flex items-center gap-1.5 cursor-pointer">
       ← Back to Room Collection
     </button>
@@ -154,15 +154,28 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+const route = useRoute();
+const router = useRouter();
 
 const props = defineProps({
   roomId: {
     type: String,
-    default: 'rm-101'
+    default: ''
   }
 });
 
 const emit = defineEmits(['back', 'booking-created']);
+
+const effectiveRoomId = computed(() => props.roomId || route?.params?.id || 'rm-101');
+
+function handleBack() {
+  emit('back');
+  if (router) {
+    router.push('/rooms');
+  }
+}
 
 const room = ref({
   id: 'rm-101',
@@ -209,7 +222,7 @@ function getAuthHeaders() {
 
 async function fetchRoom() {
   try {
-    const res = await fetch(`/api/v1/rooms/${props.roomId}`);
+    const res = await fetch(`/api/v1/rooms/${effectiveRoomId.value}`);
     const data = await res.json();
     if (data.room) {
       room.value = {

@@ -25,12 +25,14 @@
 
     <!-- Main Navigation Bar -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 rounded-lg bg-[#D4A329] text-[#064E3B] font-bold flex items-center justify-center font-serif text-lg shadow-sm border border-yellow-200">
+      <div 
+        @click="goToHome"
+        class="flex items-center space-x-3 cursor-pointer group">
+        <div class="w-9 h-9 rounded-lg bg-[#D4A329] text-[#064E3B] font-bold flex items-center justify-center font-serif text-lg shadow-sm border border-yellow-200 group-hover:scale-105 transition-transform">
           👑
         </div>
         <div>
-          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2 group-hover:text-yellow-200 transition-colors">
             <span>{{ title }}</span>
           </h1>
           <p class="text-xs text-yellow-200/80 font-medium">Boutique Stays & Heritage Resort PMS</p>
@@ -41,15 +43,15 @@
       <div class="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm">
         <div class="bg-black/25 backdrop-blur-sm p-1 rounded-full flex border border-white/10">
           <button 
-            @click="$emit('switch-section', 'guest')"
+            @click="handleSwitchSection('guest')"
             :class="currentSection === 'guest' ? 'bg-[#D4A329] text-slate-900 font-semibold shadow-sm' : 'text-slate-200 hover:text-white'"
-            class="px-3 py-1 rounded-full transition-all">
+            class="px-3 py-1 rounded-full transition-all cursor-pointer">
             🏨 Guest Portal
           </button>
           <button 
-            @click="$emit('switch-section', 'admin')"
+            @click="handleSwitchSection('admin')"
             :class="currentSection === 'admin' ? 'bg-[#D4A329] text-slate-900 font-semibold shadow-sm' : 'text-slate-200 hover:text-white'"
-            class="px-3 py-1 rounded-full transition-all">
+            class="px-3 py-1 rounded-full transition-all cursor-pointer">
             ⚙️ Admin / Staff PMS
           </button>
         </div>
@@ -58,7 +60,7 @@
         <div class="flex items-center space-x-1">
           <button 
             @click="$emit('open-auth')"
-            class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition text-xs font-medium text-emerald-100">
+            class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition text-xs font-medium text-emerald-100 cursor-pointer">
             <span>👤</span>
             <span class="hidden sm:inline">{{ currentUser?.full_name || 'Sign In' }}</span>
             <span v-if="currentUser?.role" class="ml-1 text-[10px] px-1.5 py-0.2 bg-[#D4A329] text-slate-900 rounded-md font-bold uppercase">
@@ -69,7 +71,7 @@
             v-if="currentUser"
             @click="$emit('logout')"
             title="Sign Out"
-            class="p-1.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white text-xs transition">
+            class="p-1.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white text-xs transition cursor-pointer">
             🚪
           </button>
         </div>
@@ -79,6 +81,10 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
 defineProps({
   title: {
     type: String,
@@ -94,5 +100,22 @@ defineProps({
   }
 });
 
-defineEmits(['switch-section', 'open-auth', 'logout']);
+const emit = defineEmits(['switch-section', 'open-auth', 'logout']);
+
+function goToHome() {
+  if (router) {
+    router.push('/rooms');
+  }
+}
+
+function handleSwitchSection(sec) {
+  emit('switch-section', sec);
+  if (router) {
+    if (sec === 'admin') {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/rooms');
+    }
+  }
+}
 </script>

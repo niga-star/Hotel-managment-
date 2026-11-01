@@ -164,8 +164,8 @@
             <div class="px-4 pb-4 pt-2 flex items-center justify-between border-t border-slate-50">
               <button 
                 type="button"
-                @click.stop="$emit('view-details', room.id)"
-                class="text-xs font-semibold text-[#0B4D34] hover:underline flex items-center gap-1">
+                @click.stop="openDetails(room.id)"
+                class="text-xs font-semibold text-[#0B4D34] hover:underline flex items-center gap-1 cursor-pointer">
                 Showcase Details →
               </button>
               
@@ -381,8 +381,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const emit = defineEmits(['view-details', 'booking-created', 'open-auth']);
+
+function openDetails(roomId) {
+  emit('view-details', roomId);
+  if (router) {
+    router.push(`/room/${roomId}`);
+  }
+}
 
 const selectedCategory = ref('all');
 const searchQuery = ref('');
