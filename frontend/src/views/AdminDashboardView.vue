@@ -92,49 +92,209 @@
       </div>
     </div>
 
-    <!-- Room Status Matrix Grid (Screen 2) -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      <div class="flex items-center justify-between mb-5">
+    <!-- Room Status Matrix Grid & Interactive Tape Chart Timeline (Screen 2) -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <h3 class="text-lg font-bold text-slate-900">Room Status Floor Matrix</h3>
-          <p class="text-xs text-slate-400">Click any room pill to toggle operational state (Available ↔ Occupied ↔ Maintenance)</p>
+          <h3 class="text-lg font-bold text-slate-900">Room Operations & Availability</h3>
+          <p class="text-xs text-slate-400">Manage floor inventory status or view the 14-day booking timeline schedule</p>
         </div>
+
+        <div class="flex items-center gap-3">
+          <!-- View Mode Toggle -->
+          <div class="bg-slate-100 p-1 rounded-xl flex border border-slate-200 text-xs font-semibold">
+            <button 
+              @click="matrixViewMode = 'matrix'"
+              :class="matrixViewMode === 'matrix' ? 'bg-white text-[#0B4D34] shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'"
+              class="px-3 py-1.5 rounded-lg transition cursor-pointer">
+              🟩 Floor Matrix
+            </button>
+            <button 
+              @click="matrixViewMode = 'timeline'; loadDeskBookings()"
+              :class="matrixViewMode === 'timeline' ? 'bg-[#0B4D34] text-white shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'"
+              class="px-3 py-1.5 rounded-lg transition cursor-pointer">
+              📅 14-Day Tape Chart
+            </button>
+          </div>
+
+          <button 
+            @click="$emit('go-manage-rooms')"
+            class="px-3.5 py-1.5 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5 transition cursor-pointer">
+            <span>+</span> Manage Rooms
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode A: Floor Matrix Grid -->
+      <div v-if="matrixViewMode === 'matrix'">
+        <!-- Interactive Room Status Pills -->
+        <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 mb-4">
+          <button
+            v-for="room in roomsMatrix"
+            :key="room.id"
+            @click="toggleRoomStatus(room)"
+            :class="getRoomStatusClass(room.status)"
+            class="py-3 px-2 rounded-xl text-center font-bold text-sm shadow-sm transition-transform hover:scale-105 relative group cursor-pointer">
+            <span class="block">Room {{ room.room_number }}</span>
+            <span class="text-[10px] uppercase font-normal tracking-wider opacity-85 block truncate">
+              {{ room.status }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center justify-end space-x-6 text-xs font-medium text-slate-600 pt-3 border-t border-slate-100">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-md bg-[#0B4D34]"></span>
+            <span>Available</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-md bg-[#D4A329]"></span>
+            <span>Occupied</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-md bg-[#64748B]"></span>
+            <span>Maintenance</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode B: Interactive 14-Day Tape Chart Timeline -->
+      <div v-else class="space-y-3">
+        <!-- Tape Chart Navigation Controls -->
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <div class="flex items-center gap-2">
+            <button 
+              @click="timelineOffsetDays -= 7" 
+              class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-semibold cursor-pointer">
+              ← Previous 7 Days
+            </button>
+            <button 
+              @click="timelineOffsetDays = 0" 
+              class="px-2.5 py-1 bg-[#0B4D34] text-white rounded-lg hover:bg-[#064E3B] font-bold cursor-pointer">
+              Today
+            </button>
+            <button 
+              @click="timelineOffsetDays += 7" 
+              class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 font-semibold cursor-pointer">
+              Next 7 Days →
+            </button>
+          </div>
+
+          <div class="flex items-center gap-4 text-[11px] font-medium text-slate-600">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-600"></span> Confirmed</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500"></span> Checked-In</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-slate-200"></span> Vacant / Clean</span>
+          </div>
+        </div>
+
+        <!-- Gantt Timeline Grid Table -->
+        <div class="overflow-x-auto border border-slate-200 rounded-2xl shadow-xs">
+          <table class="w-full text-center border-collapse min-w-[850px]">
+            <thead>
+              <tr class="bg-slate-100/90 text-slate-700 text-xs font-semibold border-b border-slate-200">
+                <th class="py-2.5 px-3 text-left sticky left-0 bg-slate-100 z-10 w-28 border-r border-slate-200">Room</th>
+                <th 
+                  v-for="d in timelineDates" 
+                  :key="d.dateStr"
+                  :class="[
+                    d.isToday ? 'bg-emerald-100/80 text-[#0B4D34] font-bold' : (d.isWeekend ? 'bg-slate-50 text-slate-800' : 'text-slate-600'),
+                    'py-2 px-1 text-[11px] min-w-16 border-r border-slate-200/70'
+                  ]">
+                  <span class="block text-[10px] uppercase font-mono">{{ d.dayName }}</span>
+                  <span class="text-xs font-bold">{{ d.dayNumber }} {{ d.monthName }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="room in roomsMatrix" 
+                :key="room.id"
+                class="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                <!-- Room info column -->
+                <td class="py-2.5 px-3 text-left sticky left-0 bg-white font-bold text-xs text-slate-900 border-r border-slate-200 shadow-xs z-10">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full" :class="room.status === 'available' ? 'bg-emerald-500' : (room.status === 'occupied' ? 'bg-amber-500' : 'bg-slate-400')"></span>
+                    <span>Room {{ room.room_number }}</span>
+                  </div>
+                  <span class="text-[10px] font-normal text-slate-400 block">{{ room.category_name || 'Suite' }}</span>
+                </td>
+
+                <!-- 14-Day Cells -->
+                <td 
+                  v-for="d in timelineDates" 
+                  :key="d.dateStr"
+                  class="p-1 border-r border-slate-100 text-[10px] h-12 relative align-middle">
+                  <!-- Active Reservation Block -->
+                  <div 
+                    v-if="getBookingForRoomAndDate(room.id, d.dateStr)"
+                    @click="selectedTapeBooking = getBookingForRoomAndDate(room.id, d.dateStr)"
+                    :class="[
+                      getBookingForRoomAndDate(room.id, d.dateStr).booking_status === 'checked_in' 
+                        ? 'bg-amber-500/90 text-white shadow-xs' 
+                        : 'bg-[#0B4D34] text-white shadow-xs'
+                    ]"
+                    class="w-full h-full rounded-md p-1 flex flex-col justify-center text-left cursor-pointer hover:brightness-110 transition">
+                    <span class="font-bold truncate text-[10px] leading-tight">
+                      {{ getBookingForRoomAndDate(room.id, d.dateStr).guest_name?.split(' ')[0] }}
+                    </span>
+                    <span class="text-[8px] opacity-80 font-mono truncate leading-tight">
+                      {{ getBookingForRoomAndDate(room.id, d.dateStr).reference_code }}
+                    </span>
+                  </div>
+                  <!-- Vacant Day Slot -->
+                  <div v-else class="w-full h-full flex items-center justify-center text-slate-200 hover:text-emerald-600 hover:bg-emerald-50/50 rounded transition text-xs">
+                    ·
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Tape Chart Reservation Popover Modal -->
+    <div v-if="selectedTapeBooking" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-2xl border border-slate-100">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div>
+            <h4 class="font-bold text-slate-900 text-sm">{{ selectedTapeBooking.room_title }} (Room {{ selectedTapeBooking.room_number }})</h4>
+            <p class="text-[11px] text-[#0B4D34] font-mono font-bold">{{ selectedTapeBooking.reference_code }}</p>
+          </div>
+          <button @click="selectedTapeBooking = null" class="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between text-slate-600">
+            <span>Guest Name:</span>
+            <span class="font-bold text-slate-900">{{ selectedTapeBooking.guest_name }}</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Phone:</span>
+            <span class="font-bold text-slate-900">{{ selectedTapeBooking.guest_phone || 'N/A' }}</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Dates:</span>
+            <span class="font-bold text-slate-900">{{ selectedTapeBooking.check_in_date }} → {{ selectedTapeBooking.check_out_date }}</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Status:</span>
+            <span :class="getStatusBadgeClass(selectedTapeBooking.booking_status)" class="px-2 py-0.5 rounded-full font-bold text-[10px] capitalize">
+              {{ selectedTapeBooking.booking_status }}
+            </span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Total Price:</span>
+            <span class="font-bold text-[#0B4D34]">ETB {{ Number(selectedTapeBooking.total_price_etb).toLocaleString() }}</span>
+          </div>
+        </div>
+
         <button 
-          @click="$emit('go-manage-rooms')"
-          class="px-4 py-2 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-semibold rounded-full shadow-sm flex items-center gap-1.5 transition">
-          <span>+</span> Add / Manage Rooms
+          @click="selectedTapeBooking = null" 
+          class="w-full py-2 bg-[#0B4D34] hover:bg-[#064E3B] text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer">
+          Close Window
         </button>
-      </div>
-
-      <!-- Interactive Room Status Pills -->
-      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 mb-4">
-        <button
-          v-for="room in roomsMatrix"
-          :key="room.id"
-          @click="toggleRoomStatus(room)"
-          :class="getRoomStatusClass(room.status)"
-          class="py-3 px-2 rounded-xl text-center font-bold text-sm shadow-sm transition-transform hover:scale-105 relative group cursor-pointer">
-          <span class="block">Room {{ room.room_number }}</span>
-          <span class="text-[10px] uppercase font-normal tracking-wider opacity-85 block truncate">
-            {{ room.status }}
-          </span>
-        </button>
-      </div>
-
-      <!-- Legend -->
-      <div class="flex items-center justify-end space-x-6 text-xs font-medium text-slate-600 pt-3 border-t border-slate-100">
-        <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-md bg-[#0B4D34]"></span>
-          <span>Available</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-md bg-[#D4A329]"></span>
-          <span>Occupied</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-md bg-[#64748B]"></span>
-          <span>Maintenance</span>
-        </div>
       </div>
     </div>
 
@@ -218,6 +378,52 @@ const kpis = ref({
 const roomsMatrix = ref([]);
 const reservations = ref([]);
 
+const matrixViewMode = ref('matrix'); // 'matrix' | 'timeline'
+const timelineOffsetDays = ref(0);
+const allBookings = ref([]);
+const selectedTapeBooking = ref(null);
+
+const timelineDates = computed(() => {
+  const dates = [];
+  const base = new Date();
+  base.setDate(base.getDate() + timelineOffsetDays.value);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + i);
+    dates.push({
+      dateStr: d.toISOString().split('T')[0],
+      dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      dayNumber: d.getDate(),
+      monthName: d.toLocaleDateString('en-US', { month: 'short' }),
+      isToday: d.toDateString() === (new Date()).toDateString(),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6
+    });
+  }
+  return dates;
+});
+
+function getBookingForRoomAndDate(roomId, dateStr) {
+  return allBookings.value.find(b => {
+    if (b.room_id !== roomId) return false;
+    if (['cancelled', 'rejected'].includes(b.booking_status)) return false;
+    return dateStr >= b.check_in_date && dateStr < b.check_out_date;
+  });
+}
+
+async function loadDeskBookings() {
+  try {
+    const res = await fetch('/api/v1/admin/bookings/desk', {
+      headers: getAuthHeaders()
+    });
+    if (res.ok) {
+      const data = await res.json();
+      allBookings.value = data.bookings || [];
+    }
+  } catch (err) {
+    console.error('Failed to load tape chart bookings:', err);
+  }
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem('hotel_auth_token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -275,5 +481,6 @@ async function toggleRoomStatus(room) {
 
 onMounted(() => {
   fetchDashboard();
+  loadDeskBookings();
 });
 </script>
