@@ -1,21 +1,24 @@
 {
   "name": "luxury-ethiopian-hotel-management",
-  "version": "2.0.0",
-  "description": "Enterprise Ethiopian Hotel Management PMS & Guest Booking Engine",
+  "version": "3.0.0",
+  "description": "Enterprise Ethiopian Hotel Management PMS & Guest Booking Engine - Vue 3 (Vite) + PHP Laravel + MySQL",
   "scripts": {
-    "start": "node Backend/src/server.js",
-    "backend": "cd Backend && node src/server.js",
     "frontend": "cd frontend && npm run dev",
-    "build:frontend": "cd frontend && npm run build"
+    "build:frontend": "cd frontend && npm run build",
+    "backend": "cd backend_laravel && php artisan serve --port=8000"
   },
   "keywords": [
     "hotel-management",
     "ethiopian-hotel",
+    "vue3",
+    "vite",
+    "laravel",
+    "mysql",
     "pms",
     "telebirr",
     "chapa",
     "booking-engine"
   ],
-  "author": "Senior Lead Full-Stack Architect",
+  "author": "niga-star <amirhassen2025@gmail.com>",
   "license": "ISC"
 }
