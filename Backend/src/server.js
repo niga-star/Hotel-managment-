@@ -1130,6 +1130,24 @@ app.patch('/api/v1/rooms/:id/status', requireStaffOrAdmin, async (req, res) => {
 // 3. BOOKINGS & CONCURRENCY CONTROL (Images 3, 4, 8)
 // ==========================================
 
+// Promo Code Validation Endpoint
+app.post('/api/v1/bookings/validate-promo', (req, res) => {
+  const { promo_code } = req.body;
+  if (!promo_code) {
+    return res.status(400).json({ error: 'Promo code is required.' });
+  }
+  const code = promo_code.trim().toUpperCase();
+  const validPromos = {
+    'LUXURYETHIOPIA': { discount_percent: 15, title: '15% Royal VIP Ethiopian Discount' },
+    'HOLIDAY2026': { discount_percent: 10, title: '10% Seasonal Holiday Getaway' },
+    'TELEBIRR5': { discount_percent: 5, title: '5% Telebirr Partner Privilege' }
+  };
+  if (validPromos[code]) {
+    return res.json({ valid: true, code, ...validPromos[code] });
+  }
+  return res.status(404).json({ valid: false, error: 'Invalid or expired promotional code.' });
+});
+
 app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
   const {
     room_id,
@@ -1142,6 +1160,7 @@ app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
     guest_phone,
     payment_method = 'telebirr',
     payment_mode = 'manual_receipt', // 'manual_receipt' or 'gateway'
+    promo_code = null,
     is_walk_in = 0
   } = req.body;
 
@@ -1196,10 +1215,23 @@ app.post('/api/v1/bookings', authenticateToken, async (req, res) => {
       });
     }
 
-    // 2. Calculate Nights & Price
+    // 2. Calculate Nights & Dynamic Promo Pricing
     const nights = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-    const totalPriceEtb = parseFloat(room.price_etb) * nights;
-    const totalPriceUsd = parseFloat(room.price_usd) * nights;
+    let totalPriceEtb = parseFloat(room.price_etb) * nights;
+    let totalPriceUsd = parseFloat(room.price_usd) * nights;
+
+    if (promo_code) {
+      const code = promo_code.trim().toUpperCase();
+      let discountPct = 0;
+      if (code === 'LUXURYETHIOPIA') discountPct = 15;
+      else if (code === 'HOLIDAY2026') discountPct = 10;
+      else if (code === 'TELEBIRR5') discountPct = 5;
+
+      if (discountPct > 0) {
+        totalPriceEtb = Math.round(totalPriceEtb * (1 - discountPct / 100));
+        totalPriceUsd = Math.round(totalPriceUsd * (1 - discountPct / 100));
+      }
+    }
 
     // 3. Resolve Guest User in MySQL (prefer authenticated user session)
     let guestId;

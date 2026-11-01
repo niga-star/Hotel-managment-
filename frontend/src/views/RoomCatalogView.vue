@@ -42,6 +42,27 @@
         <span class="text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-[#0B4D34] rounded-md">
           {{ nights }} {{ nights === 1 ? 'Night' : 'Nights' }}
         </span>
+
+        <!-- Guests Counter Selector -->
+        <div class="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+          <span>👥</span>
+          <select 
+            v-model="guestCount.adults" 
+            class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#0B4D34]">
+            <option :value="1">1 Adult</option>
+            <option :value="2">2 Adults</option>
+            <option :value="3">3 Adults</option>
+            <option :value="4">4 Adults</option>
+          </select>
+          <select 
+            v-model="guestCount.children" 
+            class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#0B4D34]">
+            <option :value="0">0 Child</option>
+            <option :value="1">1 Child</option>
+            <option :value="2">2 Children</option>
+            <option :value="3">3 Children</option>
+          </select>
+        </div>
       </div>
 
       <!-- Search Input & Currency Switcher -->
@@ -229,9 +250,55 @@
             <span>Duration:</span>
             <span class="font-bold text-slate-900">{{ nights }} Night{{ nights > 1 ? 's' : '' }}</span>
           </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Guests:</span>
+            <span class="font-bold text-slate-900">{{ guestCount.adults }} Adult{{ guestCount.adults > 1 ? 's' : '' }}{{ guestCount.children > 0 ? `, ${guestCount.children} Child` : '' }}</span>
+          </div>
+        </div>
+
+        <!-- Promo Code / Voucher Box -->
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Promo / Discount Code</label>
+            <span class="text-[10px] text-slate-400">e.g. LUXURYETHIOPIA</span>
+          </div>
+          <div class="flex gap-2">
+            <input 
+              v-model="promoInput" 
+              type="text" 
+              placeholder="Enter Promo Code" 
+              class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono uppercase focus:outline-none focus:border-[#0B4D34]" />
+            <button 
+              type="button" 
+              @click="applyPromoCode" 
+              :disabled="promoChecking || !promoInput.trim()"
+              class="px-3.5 py-1.5 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl transition disabled:opacity-50 cursor-pointer">
+              {{ promoChecking ? '...' : 'Apply' }}
+            </button>
+          </div>
+          <div v-if="promoMessage" :class="appliedPromo ? 'text-emerald-700 font-semibold' : 'text-rose-600'" class="text-[11px] flex items-center justify-between">
+            <span>{{ promoMessage }}</span>
+            <button v-if="appliedPromo" @click="removePromo" class="text-slate-400 hover:text-slate-600 text-xs cursor-pointer">✕ Remove</button>
+          </div>
+        </div>
+
+        <!-- Pricing Summary with Dynamic Discount -->
+        <div class="space-y-1.5 text-xs pt-1 border-t border-slate-100">
+          <div class="flex justify-between text-slate-600">
+            <span>Base Room Rate:</span>
+            <span class="font-medium text-slate-800">{{ selectedRoom ? formatPrice(subtotalEtb, subtotalUsd) : '--' }}</span>
+          </div>
+          <div v-if="isWeekendStay" class="flex justify-between text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+            <span>✨ Weekend Luxury Rate:</span>
+            <span class="font-bold">Active Best Rate</span>
+          </div>
+          <div v-if="appliedPromo" class="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-semibold">
+            <span>🎁 Discount ({{ appliedPromo.discount_percent }}% Off):</span>
+            <span>- {{ formatPrice(discountAmountEtb, discountAmountUsd) }}</span>
+          </div>
           <div class="flex justify-between text-slate-900 font-bold pt-2 border-t border-slate-100 text-sm">
             <span>Total Payable:</span>
-            <span class="text-[#0B4D34]">{{ selectedRoom ? formatPrice(selectedRoom.price_etb * nights, selectedRoom.price_usd * nights) : '--' }}</span>
+            <span class="text-[#0B4D34] text-base">{{ selectedRoom ? formatPrice(finalPriceEtb, finalPriceUsd) : '--' }}</span>
           </div>
         </div>
 
@@ -427,6 +494,75 @@ const nights = computed(() => {
 });
 
 const selectedRoom = ref(null);
+const guestCount = ref({ adults: 2, children: 0 });
+const promoInput = ref('');
+const promoChecking = ref(false);
+const promoMessage = ref('');
+const appliedPromo = ref(null);
+
+const isWeekendStay = computed(() => {
+  const d1 = new Date(checkInDate.value);
+  const d2 = new Date(checkOutDate.value);
+  for (let d = new Date(d1); d < d2; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 5 || d.getDay() === 6) return true;
+  }
+  return false;
+});
+
+const subtotalEtb = computed(() => {
+  if (!selectedRoom.value) return 0;
+  return selectedRoom.value.price_etb * nights.value;
+});
+
+const subtotalUsd = computed(() => {
+  if (!selectedRoom.value) return 0;
+  return selectedRoom.value.price_usd * nights.value;
+});
+
+const discountAmountEtb = computed(() => {
+  if (!appliedPromo.value) return 0;
+  return Math.round(subtotalEtb.value * (appliedPromo.value.discount_percent / 100));
+});
+
+const discountAmountUsd = computed(() => {
+  if (!appliedPromo.value) return 0;
+  return Math.round(subtotalUsd.value * (appliedPromo.value.discount_percent / 100));
+});
+
+const finalPriceEtb = computed(() => subtotalEtb.value - discountAmountEtb.value);
+const finalPriceUsd = computed(() => subtotalUsd.value - discountAmountUsd.value);
+
+async function applyPromoCode() {
+  if (!promoInput.value.trim()) return;
+  promoChecking.value = true;
+  promoMessage.value = '';
+  try {
+    const res = await fetch('/api/v1/bookings/validate-promo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ promo_code: promoInput.value })
+    });
+    const data = await res.json();
+    if (res.ok && data.valid) {
+      appliedPromo.value = data;
+      promoMessage.value = `✓ ${data.title} applied!`;
+    } else {
+      appliedPromo.value = null;
+      promoMessage.value = data.error || 'Invalid promo code';
+    }
+  } catch (e) {
+    promoMessage.value = 'Failed to validate promo code';
+  } finally {
+    promoChecking.value = false;
+  }
+}
+
+function removePromo() {
+  appliedPromo.value = null;
+  promoMessage.value = '';
+  promoInput.value = '';
+}
+
 const paymentMethod = ref('telebirr');
 const paymentMode = ref('manual_receipt');
 const bookingSubmitting = ref(false);
@@ -569,8 +705,9 @@ async function submitBooking() {
       room_id: selectedRoom.value.id,
       check_in_date: checkInDate.value,
       check_out_date: checkOutDate.value,
-      adults: 2,
-      children: 0,
+      adults: guestCount.value.adults,
+      children: guestCount.value.children,
+      promo_code: appliedPromo.value ? appliedPromo.value.code : null,
       payment_method: paymentMethod.value,
       payment_mode: paymentMode.value,
       guest_name: guestForm.value.name.trim() || 'Valued Guest',
