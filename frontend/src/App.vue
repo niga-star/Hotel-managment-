@@ -126,6 +126,7 @@ const currentAdminView = computed(() => {
   if (route.path.includes('/bookings')) return 'bookings';
   if (route.path.includes('/check-in')) return 'check-in';
   if (route.path.includes('/check-out')) return 'check-out';
+  if (route.path.includes('/housekeeping')) return 'housekeeping';
   if (route.path.includes('/payments')) return 'payments';
   if (route.path.includes('/reports')) return 'reports';
   return 'dashboard';
@@ -178,6 +179,7 @@ function onSelectAdminView(viewId) {
     'bookings': '/admin/bookings',
     'check-in': '/admin/check-in',
     'check-out': '/admin/check-out',
+    'housekeeping': '/admin/housekeeping',
     'payments': '/admin/payments',
     'reports': '/admin/reports'
   };

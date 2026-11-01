@@ -64,6 +64,7 @@ const navItems = [
   { id: 'bookings', label: 'Bookings Desk', icon: '📅', path: '/admin/bookings' },
   { id: 'check-in', label: 'Check-In Desk', icon: '🛎️', path: '/admin/check-in' },
   { id: 'check-out', label: 'Check-Out Desk', icon: '🚪', path: '/admin/check-out' },
+  { id: 'housekeeping', label: 'Housekeeping', icon: '🧹', path: '/admin/housekeeping' },
   { id: 'payments', label: 'Payments', icon: '💳', path: '/admin/payments' },
   { id: 'reports', label: 'Reports', icon: '📈', path: '/admin/reports' }
 ];

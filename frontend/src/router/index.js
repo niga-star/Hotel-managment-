@@ -14,6 +14,7 @@ import CheckInDeskView from '../views/CheckInDeskView.vue';
 import CheckOutDeskView from '../views/CheckOutDeskView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
 import ReportsView from '../views/ReportsView.vue';
+import HousekeepingView from '../views/HousekeepingView.vue';
 
 const routes = [
   // Guest Portal Routes
@@ -77,6 +78,12 @@ const routes = [
     name: 'AdminCheckOut',
     component: CheckOutDeskView,
     meta: { section: 'admin', title: 'Front Desk Check-Out Desk', adminView: 'check-out' }
+  },
+  {
+    path: '/admin/housekeeping',
+    name: 'AdminHousekeeping',
+    component: HousekeepingView,
+    meta: { section: 'admin', title: 'Housekeeping & Cleanliness Management', adminView: 'housekeeping' }
   },
   {
     path: '/admin/payments',

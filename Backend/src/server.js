@@ -23,6 +23,19 @@ app.use(express.json());
 // Serve local image uploads statically
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// Migration check: Ensure housekeeping_status exists in rooms table
+(async () => {
+  try {
+    const [cols] = await pool.query("SHOW COLUMNS FROM rooms LIKE 'housekeeping_status'");
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE rooms ADD COLUMN housekeeping_status ENUM('inspected', 'clean', 'dirty', 'maintenance') NOT NULL DEFAULT 'inspected'");
+      console.log('[DB] Added housekeeping_status column to rooms table.');
+    }
+  } catch (e) {
+    console.warn('[DB] Housekeeping migration check:', e.message);
+  }
+})();
+
 // --- Authentication & RBAC Middleware ---
 
 // Lenient token parser for public browsing & guest booking fallback
@@ -1126,6 +1139,42 @@ app.patch('/api/v1/rooms/:id/status', requireStaffOrAdmin, async (req, res) => {
   }
 });
 
+// Housekeeping Operations Endpoints
+app.get('/api/v1/housekeeping', requireStaffOrAdmin, async (req, res) => {
+  try {
+    const [rooms] = await pool.query(`
+      SELECT 
+        r.id, r.room_number, r.title, r.floor, r.status,
+        COALESCE(r.housekeeping_status, 'inspected') AS housekeeping_status,
+        rc.name AS category_name,
+        r.updated_at
+      FROM rooms r
+      JOIN room_categories rc ON r.category_id = rc.id
+      ORDER BY r.floor ASC, r.room_number ASC
+    `);
+    res.json({ rooms });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.patch('/api/v1/housekeeping/:room_id', requireStaffOrAdmin, async (req, res) => {
+  const { housekeeping_status } = req.body;
+  const validStatuses = ['inspected', 'clean', 'dirty', 'maintenance'];
+  if (!validStatuses.includes(housekeeping_status)) {
+    return res.status(400).json({ error: 'Invalid housekeeping status.' });
+  }
+  try {
+    await pool.query(
+      'UPDATE rooms SET housekeeping_status = ?, updated_at = NOW() WHERE id = ? OR room_number = ?',
+      [housekeeping_status, req.params.room_id, req.params.room_id]
+    );
+    res.json({ success: true, room_id: req.params.room_id, housekeeping_status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ==========================================
 // 3. BOOKINGS & CONCURRENCY CONTROL (Images 3, 4, 8)
 // ==========================================
@@ -1870,8 +1919,8 @@ app.post('/api/v1/bookings/:id/check-out', requireStaffOrAdmin, async (req, res)
       WHERE id = ?
     `, [staffUserId, booking.id]);
 
-    // Make room available for future guests
-    await conn.query("UPDATE rooms SET status = 'available' WHERE id = ?", [booking.room_id]);
+    // Make room available for future guests & mark room dirty for housekeeping
+    await conn.query("UPDATE rooms SET status = 'available', housekeeping_status = 'dirty' WHERE id = ?", [booking.room_id]);
 
     await conn.commit();
 
