@@ -18,24 +18,24 @@
             to="/"
             :class="route.path === '/' ? 'text-[#0B4D34] font-bold border-b-2 border-[#0B4D34]' : 'text-slate-600 hover:text-slate-900'"
             class="py-2 transition">
-            🏡 Resort Overview
+            🏡 {{ t('resortOverview') }}
           </router-link>
           <router-link 
             to="/rooms"
             :class="isGuestRoomsActive ? 'text-[#0B4D34] font-bold border-b-2 border-[#0B4D34]' : 'text-slate-600 hover:text-slate-900'"
             class="py-2 transition">
-            🛎️ Suites & Room Booking
+            🛎️ {{ t('roomDiscovery') }}
           </router-link>
           <router-link 
             to="/my-bookings"
             :class="route.path === '/my-bookings' ? 'text-[#0B4D34] font-bold border-b-2 border-[#0B4D34]' : 'text-slate-600 hover:text-slate-900'"
             class="py-2 transition">
-            🎫 My Bookings & Receipts
+            🎫 {{ t('myBookings') }}
           </router-link>
         </div>
         <div class="hidden sm:flex items-center space-x-2 text-emerald-800 font-medium">
           <span>✨</span>
-          <span>Boutique Ethiopian Suites & Luxury Resort</span>
+          <span>{{ t('luxuryBannerNotice') }}</span>
         </div>
       </div>
     </div>
@@ -103,9 +103,11 @@ import AdminSidebar from './components/AdminSidebar.vue';
 // Auth Modals
 import LoginView from './views/LoginView.vue';
 import RegisterView from './views/RegisterView.vue';
+import { useI18n } from './i18n';
 
 const route = useRoute();
 const router = useRouter();
+const { t, lang } = useI18n();
 
 const authModal = ref(null); // 'login' | 'register' | null
 const authSuccessMessage = ref('');

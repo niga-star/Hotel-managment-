@@ -41,18 +41,27 @@
 
       <!-- Quick Switcher Bar between Guest Portal & Admin PMS -->
       <div class="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm">
+        <!-- Language Switcher Pill (Amharic / English) -->
+        <button 
+          @click="toggleLang"
+          class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-black/25 hover:bg-black/40 border border-[#D4A329]/30 transition text-xs font-bold text-[#D4A329] cursor-pointer"
+          :title="lang === 'en' ? 'ወደ አማርኛ ቀይር' : 'Switch to English'">
+          <span>🌐</span>
+          <span>{{ lang === 'en' ? '🇪🇹 አማርኛ' : '🇬🇧 English' }}</span>
+        </button>
+
         <div class="bg-black/25 backdrop-blur-sm p-1 rounded-full flex border border-white/10">
           <button 
             @click="handleSwitchSection('guest')"
             :class="currentSection === 'guest' ? 'bg-[#D4A329] text-slate-900 font-semibold shadow-sm' : 'text-slate-200 hover:text-white'"
             class="px-3 py-1 rounded-full transition-all cursor-pointer">
-            🏨 Guest Portal
+            🏨 {{ t('guestPortal') }}
           </button>
           <button 
             @click="handleSwitchSection('admin')"
             :class="currentSection === 'admin' ? 'bg-[#D4A329] text-slate-900 font-semibold shadow-sm' : 'text-slate-200 hover:text-white'"
             class="px-3 py-1 rounded-full transition-all cursor-pointer">
-            ⚙️ Admin / Staff PMS
+            ⚙️ {{ t('adminPMS') }}
           </button>
         </div>
 
@@ -62,7 +71,7 @@
             @click="$emit('open-auth')"
             class="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition text-xs font-medium text-emerald-100 cursor-pointer">
             <span>👤</span>
-            <span class="hidden sm:inline">{{ currentUser?.full_name || 'Sign In' }}</span>
+            <span class="hidden sm:inline">{{ currentUser?.full_name || t('signIn') }}</span>
             <span v-if="currentUser?.role" class="ml-1 text-[10px] px-1.5 py-0.2 bg-[#D4A329] text-slate-900 rounded-md font-bold uppercase">
               {{ currentUser.role === 'super_admin' ? 'Admin' : currentUser.role }}
             </span>
@@ -82,8 +91,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { useI18n } from '../i18n';
 
 const router = useRouter();
+const { lang, toggleLang, t } = useI18n();
 
 defineProps({
   title: {
