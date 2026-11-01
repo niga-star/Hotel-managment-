@@ -15,10 +15,16 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between py-2 text-xs">
         <div class="flex items-center space-x-6">
           <router-link 
+            to="/"
+            :class="route.path === '/' ? 'text-[#0B4D34] font-bold border-b-2 border-[#0B4D34]' : 'text-slate-600 hover:text-slate-900'"
+            class="py-2 transition">
+            🏡 Resort Overview
+          </router-link>
+          <router-link 
             to="/rooms"
             :class="isGuestRoomsActive ? 'text-[#0B4D34] font-bold border-b-2 border-[#0B4D34]' : 'text-slate-600 hover:text-slate-900'"
             class="py-2 transition">
-            🛎️ Room Discovery & Booking
+            🛎️ Suites & Room Booking
           </router-link>
           <router-link 
             to="/my-bookings"
@@ -110,7 +116,7 @@ const currentSection = computed(() => {
 });
 
 const isGuestRoomsActive = computed(() => {
-  return route.path === '/' || route.path === '/rooms' || route.path.startsWith('/room/');
+  return route.path === '/rooms' || route.path.startsWith('/room/');
 });
 
 const currentAdminView = computed(() => {

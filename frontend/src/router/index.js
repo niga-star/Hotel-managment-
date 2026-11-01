@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Guest Subsystem Views
+import LandingPageView from '../views/LandingPageView.vue';
 import RoomCatalogView from '../views/RoomCatalogView.vue';
 import RoomDetailsView from '../views/RoomDetailsView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
@@ -19,8 +20,8 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: RoomCatalogView,
-    meta: { section: 'guest', title: 'Room Discovery & Booking' }
+    component: LandingPageView,
+    meta: { section: 'guest', title: 'Luxury Ethiopian Resort & Suites' }
   },
   {
     path: '/rooms',
