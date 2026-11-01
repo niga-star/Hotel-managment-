@@ -1,0 +1,213 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Room;
+use App\Models\RoomCategory;
+use App\Models\RoomImage;
+use App\Models\Booking;
+use App\Models\AuditLog;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class RoomController extends Controller
+{
+    public function categories()
+    {
+        $categories = RoomCategory::all();
+        return response()->json(['categories' => $categories]);
+    }
+
+    public function index(Request $request)
+    {
+        $category = $request->query('category', 'all');
+        $search = $request->query('search');
+        $checkIn = $request->query('check_in');
+        $checkOut = $request->query('check_out');
+
+        $query = Room::with(['category', 'images', 'amenities'])
+            ->where('is_active', 1);
+
+        if ($category && $category !== 'all') {
+            $query->whereHas('category', function ($q) use ($category) {
+                $q->where('name', 'LIKE', "%$category%");
+            });
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'LIKE', "%$search%")
+                  ->orWhere('room_number', 'LIKE', "%$search%")
+                  ->orWhere('description', 'LIKE', "%$search%");
+            });
+        }
+
+        $rooms = $query->get()->map(function ($room) use ($checkIn, $checkOut) {
+            $isAvailable = true;
+
+            if ($room->status === 'maintenance') {
+                $isAvailable = false;
+            } elseif ($checkIn && $checkOut) {
+                $overlapCount = Booking::where('room_id', $room->id)
+                    ->whereIn('booking_status', ['confirmed', 'checked_in', 'pending_verification'])
+                    ->where('check_in_date', '<', $checkOut)
+                    ->where('check_out_date', '>', $checkIn)
+                    ->count();
+
+                if ($overlapCount > 0) {
+                    $isAvailable = false;
+                }
+            } else {
+                $isAvailable = ($room->status === 'available');
+            }
+
+            $primaryImg = $room->images->where('is_primary', 1)->first() ?: $room->images->first();
+
+            return [
+                'id' => $room->id,
+                'room_number' => $room->room_number,
+                'title' => $room->title,
+                'category_name' => $room->category ? $room->category->name : 'Standard',
+                'status' => $room->status,
+                'housekeeping_status' => $room->housekeeping_status ?: 'inspected',
+                'floor' => $room->floor,
+                'capacity' => $room->capacity,
+                'price_etb' => (float)$room->price_etb,
+                'price_usd' => (float)$room->price_usd,
+                'description' => $room->description,
+                'image_url' => $primaryImg ? $primaryImg->image_url : '/uploads/rooms/default.jpg',
+                'is_available' => $isAvailable,
+                'avg_rating' => '4.9',
+                'amenities' => $room->amenities->map(fn($a) => ['id' => $a->id, 'name' => $a->name]),
+            ];
+        });
+
+        return response()->json(['rooms' => $rooms]);
+    }
+
+    public function show($id)
+    {
+        $room = Room::with(['category', 'images', 'amenities'])
+            ->where('id', $id)
+            ->orWhere('room_number', $id)
+            ->firstOrFail();
+
+        $primaryImg = $room->images->where('is_primary', 1)->first() ?: $room->images->first();
+
+        return response()->json([
+            'room' => [
+                'id' => $room->id,
+                'room_number' => $room->room_number,
+                'title' => $room->title,
+                'category_name' => $room->category ? $room->category->name : 'Suite',
+                'status' => $room->status,
+                'housekeeping_status' => $room->housekeeping_status ?: 'inspected',
+                'floor' => $room->floor,
+                'capacity' => $room->capacity,
+                'price_etb' => (float)$room->price_etb,
+                'price_usd' => (float)$room->price_usd,
+                'description' => $room->description,
+                'image_url' => $primaryImg ? $primaryImg->image_url : '/uploads/rooms/default.jpg',
+                'images' => $room->images->pluck('image_url')->toArray(),
+                'amenities' => $room->amenities->map(fn($a) => ['id' => $a->id, 'name' => $a->name]),
+                'avg_rating' => '4.9',
+            ]
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'room_number' => 'required|string|unique:rooms,room_number',
+            'category_id' => 'required|string',
+            'title' => 'required|string',
+            'floor' => 'required|integer',
+            'capacity' => 'required|integer',
+            'price_etb' => 'required|numeric',
+            'price_usd' => 'required|numeric',
+            'description' => 'nullable|string',
+            'image_url' => 'nullable|string',
+        ]);
+
+        $roomId = 'rm-' . time() . '-' . rand(10, 99);
+
+        $room = Room::create([
+            'id' => $roomId,
+            'room_number' => $validated['room_number'],
+            'category_id' => $validated['category_id'],
+            'title' => $validated['title'],
+            'status' => 'available',
+            'housekeeping_status' => 'inspected',
+            'floor' => $validated['floor'],
+            'capacity' => $validated['capacity'],
+            'price_etb' => $validated['price_etb'],
+            'price_usd' => $validated['price_usd'],
+            'description' => $validated['description'] ?? '',
+            'is_active' => 1,
+        ]);
+
+        if (!empty($validated['image_url'])) {
+            RoomImage::create([
+                'id' => 'img-' . time() . '-' . rand(10, 99),
+                'room_id' => $roomId,
+                'image_url' => $validated['image_url'],
+                'is_primary' => 1,
+                'display_order' => 1,
+            ]);
+        }
+
+        return response()->json(['success' => true, 'room' => $room], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $room = Room::findOrFail($id);
+        $room->update($request->only([
+            'title', 'category_id', 'floor', 'capacity',
+            'price_etb', 'price_usd', 'description', 'status'
+        ]));
+
+        return response()->json(['success' => true, 'room' => $room]);
+    }
+
+    public function destroy($id)
+    {
+        $room = Room::findOrFail($id);
+        $room->update(['is_active' => 0]);
+        return response()->json(['success' => true, 'message' => 'Room archived successfully.']);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate(['status' => 'required|in:available,occupied,maintenance']);
+        $room = Room::where('id', $id)->orWhere('room_number', $id)->firstOrFail();
+        $room->update(['status' => $request->status]);
+
+        return response()->json(['message' => 'Room status updated successfully in MySQL.', 'status' => $request->status]);
+    }
+
+    public function getFavorites(Request $request)
+    {
+        $userId = $request->user()?->id ?: 'usr-guest-6';
+        $favs = DB::table('user_favorites')->where('user_id', $userId)->pluck('room_id');
+        return response()->json(['favorites' => $favs]);
+    }
+
+    public function addFavorite(Request $request, $roomId)
+    {
+        $userId = $request->user()?->id ?: 'usr-guest-6';
+        DB::table('user_favorites')->updateOrInsert(
+            ['user_id' => $userId, 'room_id' => $roomId],
+            ['created_at' => now()]
+        );
+        return response()->json(['success' => true]);
+    }
+
+    public function removeFavorite(Request $request, $roomId)
+    {
+        $userId = $request->user()?->id ?: 'usr-guest-6';
+        DB::table('user_favorites')->where('user_id', $userId)->where('room_id', $roomId)->delete();
+        return response()->json(['success' => true]);
+    }
+}
