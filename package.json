@@ -1,0 +1,21 @@
+{
+  "name": "luxury-ethiopian-hotel-management",
+  "version": "2.0.0",
+  "description": "Enterprise Ethiopian Hotel Management PMS & Guest Booking Engine",
+  "scripts": {
+    "start": "node Backend/src/server.js",
+    "backend": "cd Backend && node src/server.js",
+    "frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "hotel-management",
+    "ethiopian-hotel",
+    "pms",
+    "telebirr",
+    "chapa",
+    "booking-engine"
+  ],
+  "author": "Senior Lead Full-Stack Architect",
+  "license": "ISC"
+}
