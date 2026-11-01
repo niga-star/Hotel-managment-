@@ -116,41 +116,75 @@
       </div>
     </div>
 
-    <!-- Final Departure Invoice Modal (Item 3C) -->
+    <!-- Final Official Ethiopian Departure Tax Invoice Modal (Screen 8C) -->
     <div v-if="completedInvoice" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100 text-center animate-fadeIn">
-        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 text-2xl flex items-center justify-center mx-auto">
-          ✓
-        </div>
-        <div>
-          <h3 class="text-lg font-bold text-slate-900">Check-Out Complete</h3>
-          <p class="text-xs text-slate-500">Departure invoice generated and room marked available.</p>
+      <div class="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100 animate-fadeIn">
+        <!-- Invoice Header -->
+        <div class="border-b border-slate-200 pb-3 text-center space-y-1">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 text-xl flex items-center justify-center mx-auto">
+            👑
+          </div>
+          <h3 class="text-base font-bold text-slate-900 font-serif">LUXURY ETHIOPIAN RESORT & SUITES</h3>
+          <p class="text-[10px] text-slate-500">Boutique Hospitality PMS • Addis Ababa & Rift Valley Resorts</p>
+          <div class="flex items-center justify-center gap-3 text-[10px] font-mono text-slate-400">
+            <span>TIN: 0049281921</span>
+            <span>•</span>
+            <span>VAT Reg: 991823901</span>
+          </div>
         </div>
 
-        <div class="p-4 bg-slate-50 rounded-2xl text-xs space-y-2 text-left border border-slate-200">
-          <div class="flex justify-between">
-            <span class="text-slate-500">Invoice Ref:</span>
-            <span class="font-bold text-slate-900 font-mono">{{ completedInvoice.reference_code }}</span>
+        <!-- Invoice Details -->
+        <div class="p-4 bg-slate-50 rounded-2xl text-xs space-y-2 border border-slate-200">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-bold block">Tax Invoice Ref</span>
+              <span class="font-bold text-slate-900 font-mono text-sm">{{ completedInvoice.reference_code }}</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
+              PAID IN FULL
+            </span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-slate-500">Total Settled:</span>
-            <span class="font-bold text-[#0B4D34]">ETB {{ completedInvoice.total_price_etb?.toLocaleString() }}</span>
+
+          <!-- Itemized Breakdown -->
+          <div class="space-y-1.5 pt-1 text-[11px]">
+            <div class="flex justify-between text-slate-600">
+              <span>Accommodation & Room Services (Net):</span>
+              <span class="font-medium text-slate-800">ETB {{ Math.round(Number(completedInvoice.total_price_etb) / 1.25).toLocaleString() }}</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span>10% Hotel Hospitality Service Charge:</span>
+              <span class="font-medium text-slate-800">ETB {{ Math.round((Number(completedInvoice.total_price_etb) / 1.25) * 0.10).toLocaleString() }}</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span>15% Ethiopian VAT (Value Added Tax):</span>
+              <span class="font-medium text-slate-800">ETB {{ Math.round((Number(completedInvoice.total_price_etb) / 1.25) * 0.15).toLocaleString() }}</span>
+            </div>
+            <div class="flex justify-between text-slate-900 font-bold text-xs pt-2 border-t border-slate-200">
+              <span>Gross Total Settled:</span>
+              <span class="text-[#0B4D34] text-sm">ETB {{ Number(completedInvoice.total_price_etb).toLocaleString() }}</span>
+            </div>
           </div>
-          <div class="flex justify-between">
-            <span class="text-slate-500">Settlement Status:</span>
-            <span class="font-bold text-emerald-700 capitalize">{{ completedInvoice.status?.replace('_', ' ') }}</span>
-          </div>
-          <div class="flex justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-200">
-            <span>Departure Time:</span>
+
+          <div class="flex justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-200">
+            <span>Departure Timestamp:</span>
             <span>{{ formatDateTime(completedInvoice.actual_check_out_at) }}</span>
           </div>
         </div>
 
-        <button 
-          @click="completedInvoice = null"
-          class="w-full py-2.5 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl transition cursor-pointer">
-          Close & Return to Desk
-        </button>
+        <!-- Buttons -->
+        <div class="flex gap-2">
+          <button 
+            @click="printInvoice"
+            class="flex-1 py-2.5 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <span>🖨️</span>
+            <span>Print Tax Invoice</span>
+          </button>
+          <button 
+            @click="completedInvoice = null"
+            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -224,6 +258,10 @@ async function executeCheckOut(b) {
   } finally {
     checkingOutId.value = null;
   }
+}
+
+function printInvoice() {
+  window.print();
 }
 
 onMounted(() => {

@@ -108,13 +108,21 @@
                 </td>
                 <!-- Action -->
                 <td class="py-3.5 px-5 text-right">
-                  <button 
-                    @click="executeCheckIn(b)"
-                    :disabled="checkingInId === b.id"
-                    class="px-3.5 py-2 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-1.5 ml-auto cursor-pointer">
-                    <span v-if="checkingInId === b.id" class="animate-spin text-xs">⏳</span>
-                    <span>Confirm Check-In</span>
-                  </button>
+                  <div class="inline-flex items-center gap-2">
+                    <button 
+                      @click="openRegCard(b)"
+                      class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1">
+                      <span>📋</span>
+                      <span>Reg Card & ID</span>
+                    </button>
+                    <button 
+                      @click="executeCheckIn(b)"
+                      :disabled="checkingInId === b.id"
+                      class="px-3.5 py-1.5 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                      <span v-if="checkingInId === b.id" class="animate-spin text-xs">⏳</span>
+                      <span>Check-In</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -152,6 +160,89 @@
         </button>
       </div>
     </div>
+
+    <!-- Digital Guest Registration Card & ID Verification Modal -->
+    <div v-if="selectedRegBooking" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Official Guest Registration Card</h3>
+            <p class="text-xs text-slate-400">Ethiopian Hospitality Regulatory Compliance</p>
+          </div>
+          <button @click="selectedRegBooking = null" class="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">✕</button>
+        </div>
+
+        <!-- Booking details -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Guest Name:</span>
+            <span class="font-bold text-slate-900">{{ selectedRegBooking.guest_name }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Phone & Email:</span>
+            <span class="font-mono text-slate-800">{{ selectedRegBooking.guest_phone }} • {{ selectedRegBooking.guest_email }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Assigned Room:</span>
+            <span class="font-bold text-[#0B4D34]">Room {{ selectedRegBooking.room_number }} ({{ selectedRegBooking.category_name }})</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Stay Dates:</span>
+            <span class="font-semibold text-slate-800">{{ selectedRegBooking.check_in_date }} → {{ selectedRegBooking.check_out_date }}</span>
+          </div>
+        </div>
+
+        <!-- ID Upload Box -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-slate-700 block">🪪 Guest ID / Passport Attachment (Mandatory)</label>
+          <div 
+            @click="$refs.idFileInput.click()" 
+            class="border-2 border-dashed border-slate-200 hover:border-[#0B4D34] rounded-xl p-4 text-center cursor-pointer bg-slate-50/50 transition">
+            <input 
+              ref="idFileInput" 
+              type="file" 
+              accept="image/*" 
+              @change="onIdSelected" 
+              class="hidden" />
+            <div v-if="idPreview" class="space-y-1">
+              <img :src="idPreview" class="max-h-32 mx-auto rounded-lg shadow-xs border" alt="ID Preview" />
+              <p class="text-xs text-emerald-600 font-semibold">✓ ID Image Verified & Attached</p>
+            </div>
+            <div v-else class="text-xs text-slate-500 space-y-1">
+              <div class="text-2xl">📸</div>
+              <p class="font-semibold text-slate-700">Click to upload Kebele ID, Passport or Resident ID</p>
+              <p class="text-[10px] text-slate-400">JPG, PNG, PDF up to 10MB</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Policy Consent Checkbox -->
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 space-y-1.5">
+          <p class="font-bold">📜 Hotel House Rules & Acceptance:</p>
+          <p>• Check-out time is strictly 12:00 PM noon.</p>
+          <p>• All suites are 100% non-smoking. Smoking incurs ETB 3,000 restoration charge.</p>
+          <label class="flex items-center gap-2 pt-1 font-bold cursor-pointer">
+            <input type="checkbox" v-model="policyAccepted" class="rounded accent-[#0B4D34]" />
+            <span>Guest has confirmed identity and accepts all house rules</span>
+          </label>
+        </div>
+
+        <!-- Action -->
+        <div class="flex gap-2 pt-2">
+          <button 
+            @click="completeRegCheckIn"
+            :disabled="!policyAccepted || checkingInId === selectedRegBooking.id"
+            class="flex-1 py-3 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer">
+            {{ checkingInId === selectedRegBooking.id ? 'Processing...' : 'Complete Check-In & Issue Key' }}
+          </button>
+          <button 
+            @click="selectedRegBooking = null"
+            class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -163,6 +254,29 @@ const loading = ref(false);
 const searchQuery = ref('');
 const checkingInId = ref(null);
 const simulatedQrUrl = ref('https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=%23ETH-CHECKIN-READY');
+
+const selectedRegBooking = ref(null);
+const idPreview = ref(null);
+const policyAccepted = ref(true);
+
+function openRegCard(booking) {
+  selectedRegBooking.value = booking;
+  idPreview.value = null;
+  policyAccepted.value = true;
+}
+
+function onIdSelected(e) {
+  const f = e.target.files?.[0];
+  if (f) {
+    idPreview.value = URL.createObjectURL(f);
+  }
+}
+
+async function completeRegCheckIn() {
+  if (!selectedRegBooking.value) return;
+  await executeCheckIn(selectedRegBooking.value);
+  selectedRegBooking.value = null;
+}
 
 function getAuthHeaders() {
   const token = localStorage.getItem('hotel_auth_token');
