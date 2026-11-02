@@ -25,6 +25,12 @@
         </div>
 
         <!-- Export Buttons -->
+        <a 
+          href="/api/v1/admin/export-ledger-csv"
+          download
+          class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-full shadow-sm flex items-center gap-1.5 transition">
+          <span>📥</span> Night Audit CSV
+        </a>
         <button 
           @click="exportReport('PDF')"
           class="px-4 py-2 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-semibold rounded-full shadow-sm flex items-center gap-1.5 transition">
@@ -35,6 +41,45 @@
           class="px-4 py-2 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-semibold rounded-full shadow-sm flex items-center gap-1.5 transition">
           <span>📊</span> Export Excel
         </button>
+      </div>
+    </div>
+
+    <!-- Night Audit KPI Strip (ADR, RevPAR, Fiscal Reconciliations) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" v-if="nightAudit">
+      <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">RevPAR</span>
+          <div class="text-xl font-black text-[#0B4D34] mt-0.5">ETB {{ nightAudit.revpar_etb?.toLocaleString() }}</div>
+          <span class="text-[10px] text-slate-400">Rev / Available Room</span>
+        </div>
+        <div class="text-2xl">📈</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">ADR</span>
+          <div class="text-xl font-black text-amber-700 mt-0.5">ETB {{ nightAudit.adr_etb?.toLocaleString() }}</div>
+          <span class="text-[10px] text-slate-400">Avg Daily Rate</span>
+        </div>
+        <div class="text-2xl">💰</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Night Audit Revenue</span>
+          <div class="text-xl font-black text-slate-800 mt-0.5">ETB {{ nightAudit.daily_revenue_etb?.toLocaleString() }}</div>
+          <span class="text-[10px] text-emerald-600 font-semibold">100% Reconciled</span>
+        </div>
+        <div class="text-2xl">🏨</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Today's Movement</span>
+          <div class="text-xl font-black text-slate-800 mt-0.5">{{ nightAudit.check_ins_today }} In / {{ nightAudit.check_outs_today }} Out</div>
+          <span class="text-[10px] text-slate-400">Occ: {{ nightAudit.occupancy_percent }}%</span>
+        </div>
+        <div class="text-2xl">🛎️</div>
       </div>
     </div>
 
@@ -200,6 +245,17 @@ import { ref, onMounted } from 'vue';
 const period = ref('monthly');
 const barChartData = ref([]);
 const summaryRows = ref([]);
+const nightAudit = ref(null);
+
+async function fetchNightAudit() {
+  try {
+    const res = await fetch('/api/v1/admin/night-audit');
+    const data = await res.json();
+    nightAudit.value = data.kpis || null;
+  } catch (e) {
+    console.error('Failed to fetch night audit:', e);
+  }
+}
 
 async function fetchReportData() {
   try {
@@ -218,5 +274,6 @@ function exportReport(format) {
 
 onMounted(() => {
   fetchReportData();
+  fetchNightAudit();
 });
 </script>

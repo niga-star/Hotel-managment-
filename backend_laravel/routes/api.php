@@ -81,6 +81,8 @@ Route::prefix('v1')->group(function () {
 
     // --- Admin Dashboard & Intelligence ---
     Route::get('/admin/dashboard-stats', [AdminController::class, 'dashboardStats']);
+    Route::get('/admin/night-audit', [AdminController::class, 'nightAuditSummary']);
+    Route::get('/admin/export-ledger-csv', [AdminController::class, 'exportLedgerCsv']);
     Route::get('/admin/audit-logs', [AdminController::class, 'auditLogs']);
     Route::get('/reports/financial', [AdminController::class, 'financialReports']);
 

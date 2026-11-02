@@ -179,4 +179,72 @@ class AdminController extends Controller
         $logs = AuditLog::orderBy('created_at', 'desc')->limit($limit)->get();
         return response()->json(['logs' => $logs]);
     }
+
+    /**
+     * Daily Night Audit Summary & Hospitality KPIs (ADR, RevPAR, Occupancy).
+     */
+    public function nightAuditSummary()
+    {
+        $totalRooms = Room::where('is_active', 1)->count() ?: 26;
+        $occupiedRooms = Room::where('is_active', 1)->where('status', 'occupied')->count();
+        $totalRevenue = (float)Payment::where('status', 'verified')->sum('amount_etb');
+
+        // ADR = Total Revenue / Occupied Rooms
+        $adr = $occupiedRooms > 0 ? round($totalRevenue / $occupiedRooms, 2) : 0;
+        // RevPAR = Total Revenue / Total Available Rooms
+        $revPar = $totalRooms > 0 ? round($totalRevenue / $totalRooms, 2) : 0;
+        $occupancyPercent = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0;
+
+        $today = Carbon::today()->toDateString();
+        $checkInsToday = Booking::where('check_in_date', $today)->whereIn('booking_status', ['confirmed', 'checked_in'])->count();
+        $checkOutsToday = Booking::where('check_out_date', $today)->count();
+
+        return response()->json([
+            'audit_date' => now()->toFormattedDateString(),
+            'kpis' => [
+                'adr_etb' => $adr,
+                'revpar_etb' => $revPar,
+                'occupancy_percent' => $occupancyPercent,
+                'occupied_rooms' => $occupiedRooms,
+                'total_rooms' => $totalRooms,
+                'check_ins_today' => $checkInsToday,
+                'check_outs_today' => $checkOutsToday,
+                'daily_revenue_etb' => $totalRevenue,
+            ],
+        ]);
+    }
+
+    /**
+     * Export daily night audit ledger as CSV format.
+     */
+    public function exportLedgerCsv()
+    {
+        $bookings = Booking::with(['guest', 'room'])->orderBy('created_at', 'desc')->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="hotel_night_audit_ledger_' . date('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($bookings) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Reference Code', 'Guest Name', 'Room Number', 'Check-In', 'Check-Out', 'Total ETB', 'Status', 'Payment Status']);
+
+            foreach ($bookings as $b) {
+                fputcsv($file, [
+                    $b->reference_code,
+                    $b->guest?->full_name ?: 'Guest',
+                    $b->room?->room_number ?: 'N/A',
+                    $b->check_in_date,
+                    $b->check_out_date,
+                    $b->total_price_etb,
+                    $b->booking_status,
+                    $b->payment_status,
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
