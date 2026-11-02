@@ -15,6 +15,7 @@ import CheckOutDeskView from '../views/CheckOutDeskView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import HousekeepingView from '../views/HousekeepingView.vue';
+import HousekeeperAppView from '../views/HousekeeperAppView.vue';
 import FloorMapView from '../views/FloorMapView.vue';
 
 const routes = [
@@ -91,6 +92,12 @@ const routes = [
     name: 'AdminHousekeeping',
     component: HousekeepingView,
     meta: { section: 'admin', title: 'Housekeeping & Cleanliness Management', adminView: 'housekeeping' }
+  },
+  {
+    path: '/staff/housekeeping',
+    name: 'StaffHousekeepingApp',
+    component: HousekeeperAppView,
+    meta: { section: 'staff', title: 'Mobile Housekeeper Turnover App', adminView: 'housekeeping-app' }
   },
   {
     path: '/admin/payments',

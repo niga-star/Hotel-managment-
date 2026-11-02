@@ -66,6 +66,7 @@ const navItems = [
   { id: 'check-in', label: 'Check-In Desk', icon: '🛎️', path: '/admin/check-in' },
   { id: 'check-out', label: 'Check-Out Desk', icon: '🚪', path: '/admin/check-out' },
   { id: 'housekeeping', label: 'Housekeeping', icon: '🧹', path: '/admin/housekeeping' },
+  { id: 'housekeeping-app', label: 'Housekeeper App', icon: '📱', path: '/staff/housekeeping', badge: 'Mobile' },
   { id: 'payments', label: 'Payments', icon: '💳', path: '/admin/payments' },
   { id: 'reports', label: 'Reports', icon: '📈', path: '/admin/reports' }
 ];
