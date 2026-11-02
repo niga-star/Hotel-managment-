@@ -264,6 +264,17 @@ class RoomController extends Controller
             ];
         })->values();
 
+        return response()->json([
+            'floors' => $floors,
+            'summary' => [
+                'total_rooms' => $rooms->count(),
+                'available' => $rooms->where('status', 'available')->count(),
+                'occupied' => $rooms->where('status', 'occupied')->count(),
+                'maintenance' => $rooms->where('status', 'maintenance')->count(),
+            ],
+        ]);
+    }
+
     /**
      * Get booked date intervals and disabled date strings for a specific room.
      */

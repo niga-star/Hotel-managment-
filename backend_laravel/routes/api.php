@@ -64,6 +64,7 @@ Route::prefix('v1')->group(function () {
 
     // --- Payments & Financial Transactions ---
     Route::get('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments/initialize', [PaymentController::class, 'initializeGateway']);
     Route::post('/payments/upload-receipt', [PaymentController::class, 'uploadReceipt']);
     Route::patch('/payments/{id}/review', [PaymentController::class, 'review']);
     Route::post('/payments/{id}/review', [PaymentController::class, 'review']);

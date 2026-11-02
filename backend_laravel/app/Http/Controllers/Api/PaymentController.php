@@ -7,12 +7,22 @@ use App\Models\Payment;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\AuditLog;
+use App\Services\ChapaGatewayService;
+use App\Services\TelebirrGatewayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
+    protected ChapaGatewayService $chapa;
+    protected TelebirrGatewayService $telebirr;
+
+    public function __construct(ChapaGatewayService $chapa, TelebirrGatewayService $telebirr)
+    {
+        $this->chapa = $chapa;
+        $this->telebirr = $telebirr;
+    }
     /**
      * List all payments with SLA calculation, filtering, and aggregate KPI metrics.
      */
@@ -486,5 +496,33 @@ class PaymentController extends Controller
         }
 
         return response()->json(['status' => 'success', 'message' => 'CBE Birr payment reconciled in MySQL.']);
+    }
+
+    /**
+     * Initialize live gateway payment session (Chapa or Telebirr).
+     */
+    public function initializeGateway(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|string',
+            'gateway' => 'nullable|string|in:chapa,telebirr',
+            'return_url' => 'nullable|string',
+        ]);
+
+        $booking = Booking::with(['guest', 'room'])
+            ->where('id', $validated['booking_id'])
+            ->orWhere('reference_code', $validated['booking_id'])
+            ->firstOrFail();
+
+        $gateway = $validated['gateway'] ?? 'telebirr';
+        $amount = (float)$booking->total_price_etb;
+
+        if ($gateway === 'chapa') {
+            $result = $this->chapa->initialize($booking, $amount, $validated['return_url'] ?? null);
+        } else {
+            $result = $this->telebirr->initialize($booking, $amount);
+        }
+
+        return response()->json($result);
     }
 }
