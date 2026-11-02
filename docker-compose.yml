@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: hotel_mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: hotel_management_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend_laravel/database/sql/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - hotel_network
+
+  # PHP Laravel API Service
+  backend:
+    build:
+      context: ./backend_laravel
+      dockerfile: Dockerfile
+    container_name: hotel_backend
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: hotel_management_db
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend_laravel/storage:/var/www/html/storage
+      - ./backend_laravel/public/uploads:/var/www/html/public/uploads
+    networks:
+      - hotel_network
+
+  # Vue 3 Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hotel_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - hotel_network
+
+networks:
+  hotel_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
