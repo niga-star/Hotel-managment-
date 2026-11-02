@@ -210,4 +210,68 @@ class RoomController extends Controller
         DB::table('user_favorites')->where('user_id', $userId)->where('room_id', $roomId)->delete();
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Interactive Hotel Visual Floor Map data grouped by floors with live occupant details.
+     */
+    public function floorMap()
+    {
+        $rooms = Room::with(['category', 'images', 'bookings' => function ($q) {
+            $q->whereIn('booking_status', ['confirmed', 'checked_in'])
+              ->where('check_in_date', '<=', now()->toDateString())
+              ->where('check_out_date', '>=', now()->toDateString())
+              ->with('guest');
+        }])
+        ->where('is_active', 1)
+        ->orderBy('floor', 'asc')
+        ->orderByRaw('CAST(room_number AS UNSIGNED) ASC')
+        ->get();
+
+        $floors = $rooms->groupBy('floor')->map(function ($floorRooms, $floorNum) {
+            return [
+                'floor' => (int)$floorNum,
+                'floor_name' => $floorNum == 1 ? '1st Floor - Executive Wing' :
+                                ($floorNum == 2 ? '2nd Floor - Deluxe Suites' :
+                                ($floorNum == 3 ? '3rd Floor - Heritage Balcony' : "Floor {$floorNum} - Premier Wing")),
+                'total_rooms' => $floorRooms->count(),
+                'available_count' => $floorRooms->where('status', 'available')->count(),
+                'occupied_count' => $floorRooms->where('status', 'occupied')->count(),
+                'maintenance_count' => $floorRooms->where('status', 'maintenance')->count(),
+                'rooms' => $floorRooms->map(function ($r) {
+                    $activeBooking = $r->bookings->first();
+                    $primaryImg = $r->images->where('is_primary', 1)->first() ?: $r->images->first();
+                    return [
+                        'id' => $r->id,
+                        'room_number' => $r->room_number,
+                        'title' => $r->title,
+                        'floor' => $r->floor,
+                        'status' => $r->status,
+                        'housekeeping_status' => $r->housekeeping_status ?: 'inspected',
+                        'capacity' => $r->capacity,
+                        'price_etb' => (float)$r->price_etb,
+                        'category_name' => $r->category?->name ?: 'Deluxe',
+                        'image_url' => $primaryImg?->image_url ?: 'https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&fit=crop',
+                        'occupant' => $activeBooking ? [
+                            'booking_id' => $activeBooking->id,
+                            'reference_code' => $activeBooking->reference_code,
+                            'guest_name' => $activeBooking->guest?->full_name ?: 'In-House Guest',
+                            'check_in_date' => $activeBooking->check_in_date,
+                            'check_out_date' => $activeBooking->check_out_date,
+                            'booking_status' => $activeBooking->booking_status,
+                        ] : null,
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        return response()->json([
+            'floors' => $floors,
+            'summary' => [
+                'total_rooms' => $rooms->count(),
+                'available' => $rooms->where('status', 'available')->count(),
+                'occupied' => $rooms->where('status', 'occupied')->count(),
+                'maintenance' => $rooms->where('status', 'maintenance')->count(),
+            ],
+        ]);
+    }
 }

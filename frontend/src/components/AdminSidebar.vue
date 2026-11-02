@@ -60,6 +60,7 @@ const emit = defineEmits(['select-view']);
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/admin/dashboard' },
+  { id: 'floor-map', label: 'Visual Floor Map', icon: '🏢', path: '/admin/floor-map' },
   { id: 'manage-rooms', label: 'Manage Rooms', icon: '🛏️', path: '/admin/rooms' },
   { id: 'bookings', label: 'Bookings Desk', icon: '📅', path: '/admin/bookings' },
   { id: 'check-in', label: 'Check-In Desk', icon: '🛎️', path: '/admin/check-in' },

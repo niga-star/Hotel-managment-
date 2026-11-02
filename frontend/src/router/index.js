@@ -15,6 +15,7 @@ import CheckOutDeskView from '../views/CheckOutDeskView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
 import ReportsView from '../views/ReportsView.vue';
 import HousekeepingView from '../views/HousekeepingView.vue';
+import FloorMapView from '../views/FloorMapView.vue';
 
 const routes = [
   // Guest Portal Routes
@@ -54,6 +55,12 @@ const routes = [
     name: 'AdminDashboard',
     component: AdminDashboardView,
     meta: { section: 'admin', title: 'Hotel Admin Management Dashboard', adminView: 'dashboard' }
+  },
+  {
+    path: '/admin/floor-map',
+    name: 'AdminFloorMap',
+    component: FloorMapView,
+    meta: { section: 'admin', title: 'Interactive Hotel Floor Map & Matrix', adminView: 'floor-map' }
   },
   {
     path: '/admin/rooms',
