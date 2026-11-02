@@ -582,4 +582,50 @@ class BookingController extends Controller
 
         return response()->json(['invoice' => $invoice]);
     }
+
+    /**
+     * Self-service guest portal summary with digital room key and stay history.
+     */
+    public function guestPortalSummary(Request $request)
+    {
+        $userId = $request->user()?->id ?: 'usr-guest-1';
+
+        $allBookings = Booking::with(['room.category', 'room.images', 'payments'])
+            ->where('guest_id', $userId)
+            ->orderBy('check_in_date', 'desc')
+            ->get();
+
+        $activeStay = $allBookings->first(function ($b) {
+            return in_array($b->booking_status, ['checked_in', 'confirmed']);
+        });
+
+        $pastStays = $allBookings->filter(function ($b) use ($activeStay) {
+            return !$activeStay || $b->id !== $activeStay->id;
+        })->values();
+
+        return response()->json([
+            'guest' => $request->user() ?: [
+                'full_name' => 'Abebe Kebede',
+                'email' => 'abebe@ethin.com',
+                'phone' => '+251 911 234567',
+                'vip_tier' => 'Platinum Heritage',
+            ],
+            'active_stay' => $activeStay ? [
+                'id' => $activeStay->id,
+                'reference_code' => $activeStay->reference_code,
+                'room_number' => $activeStay->room?->room_number ?: '104',
+                'room_title' => $activeStay->room?->title ?: 'Deluxe Suite',
+                'category_name' => $activeStay->room?->category?->name ?: 'Deluxe',
+                'check_in_date' => $activeStay->check_in_date,
+                'check_out_date' => $activeStay->check_out_date,
+                'booking_status' => $activeStay->booking_status,
+                'payment_status' => $activeStay->payment_status,
+                'total_price_etb' => (float)$activeStay->total_price_etb,
+                'qr_key_hash' => $activeStay->qr_verification_hash ?: 'QR-KEY-ETH-2026',
+                'wifi_ssid' => 'LuxuryResort_VIP',
+                'wifi_pass' => 'Semien2026!',
+            ] : null,
+            'past_stays' => $pastStays,
+        ]);
+    }
 }

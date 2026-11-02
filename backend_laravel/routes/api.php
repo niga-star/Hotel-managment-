@@ -44,6 +44,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/bookings/validate-promo', [BookingController::class, 'validatePromo']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/my-bookings', [BookingController::class, 'myBookings']);
+    Route::get('/guest/portal-summary', [BookingController::class, 'guestPortalSummary']);
     Route::get('/bookings/desk', [BookingController::class, 'desk']);
     Route::get('/bookings/check-in-eligible', [BookingController::class, 'checkInEligible']);
     Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn']);

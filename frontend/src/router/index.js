@@ -5,6 +5,7 @@ import LandingPageView from '../views/LandingPageView.vue';
 import RoomCatalogView from '../views/RoomCatalogView.vue';
 import RoomDetailsView from '../views/RoomDetailsView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
+import GuestPortalView from '../views/GuestPortalView.vue';
 
 // Admin PMS Subsystem Views
 import AdminDashboardView from '../views/AdminDashboardView.vue';
@@ -44,6 +45,12 @@ const routes = [
     name: 'MyBookings',
     component: MyBookingsView,
     meta: { section: 'guest', title: 'My Bookings & Digital Receipt' }
+  },
+  {
+    path: '/guest/portal',
+    name: 'GuestPortal',
+    component: GuestPortalView,
+    meta: { section: 'guest', title: 'VIP Guest Portal & Digital Room Key' }
   },
 
   // Admin & Staff PMS Routes
