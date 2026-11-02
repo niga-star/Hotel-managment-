@@ -5,11 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\AuditLog;
+use App\Services\SmsDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
+    protected SmsDispatchService $sms;
+
+    public function __construct(SmsDispatchService $sms)
+    {
+        $this->sms = $sms;
+    }
     /**
      * Get notifications for a specific booking.
      */
@@ -96,5 +103,39 @@ class NotificationController extends Controller
             'success' => true,
             'message' => 'Confirmation ' . strtoupper($channel) . ' re-dispatched successfully.',
         ]);
+    }
+
+    /**
+     * Dispatch instant SMS notification to guest phone.
+     */
+    public function sendSms(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|string',
+            'phone' => 'nullable|string',
+            'type' => 'nullable|string|in:booking_confirmed,check_in,check_out,custom',
+            'custom_message' => 'nullable|string',
+        ]);
+
+        $booking = Booking::with(['guest', 'room'])
+            ->where('id', $validated['booking_id'])
+            ->orWhere('reference_code', $validated['booking_id'])
+            ->firstOrFail();
+
+        $type = $validated['type'] ?? 'booking_confirmed';
+        $phone = $validated['phone'] ?: ($booking->guest?->phone ?: '+251911000000');
+
+        if ($type === 'check_in') {
+            $result = $this->sms->sendCheckInSms($booking);
+        } elseif ($type === 'check_out') {
+            $invNum = 'INV-' . preg_replace('/[^A-Za-z0-9]/', '', $booking->reference_code);
+            $result = $this->sms->sendCheckOutSms($booking, $invNum);
+        } elseif ($type === 'custom' && !empty($validated['custom_message'])) {
+            $result = $this->sms->dispatch($booking->id, $booking->guest_id, $phone, $validated['custom_message'], 'custom');
+        } else {
+            $result = $this->sms->sendBookingSms($booking);
+        }
+
+        return response()->json($result);
     }
 }

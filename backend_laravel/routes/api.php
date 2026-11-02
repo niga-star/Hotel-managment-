@@ -87,4 +87,5 @@ Route::prefix('v1')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/booking/{bookingId}', [NotificationController::class, 'bookingNotifications']);
     Route::post('/notifications/resend', [NotificationController::class, 'resend']);
+    Route::post('/notifications/sms/send', [NotificationController::class, 'sendSms']);
 });

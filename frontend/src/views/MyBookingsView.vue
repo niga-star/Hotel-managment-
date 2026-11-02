@@ -225,16 +225,16 @@ function cancelBooking(b) {
 
 async function resendNotifications(b) {
   try {
-    const res = await fetch('/api/v1/notifications/resend', {
+    const res = await fetch('/api/v1/notifications/sms/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: b.id, channel: 'email' })
+      body: JSON.stringify({ booking_id: b.id, phone: b.guest_phone, type: 'booking_confirmed' })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    alert(`✉️📱 Confirmation email and Ethio SMS re-dispatched to ${b.guest_email} & ${b.guest_phone}!`);
+    if (!res.ok) throw new Error(data.error || 'Failed to send SMS');
+    alert(`📱 Ethio SMS confirmation dispatched! Delivery Ref: ${data.delivery_reference}`);
   } catch (err) {
-    alert('Failed to resend: ' + err.message);
+    alert('Failed to dispatch: ' + err.message);
   }
 }
 
