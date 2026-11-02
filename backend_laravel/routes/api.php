@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn']);
     Route::get('/bookings/check-out-eligible', [BookingController::class, 'checkOutEligible']);
     Route::post('/bookings/{id}/check-out', [BookingController::class, 'checkOut']);
+    Route::get('/bookings/{id}/invoice', [BookingController::class, 'generateInvoice']);
 
     // --- Admin Front Desk Shortcuts ---
     Route::get('/admin/bookings/desk', [BookingController::class, 'desk']);

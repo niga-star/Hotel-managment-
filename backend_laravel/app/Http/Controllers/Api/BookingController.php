@@ -502,4 +502,84 @@ class BookingController extends Controller
             ]);
         });
     }
+
+    /**
+     * Generate Legal Tax Invoice & Fiscal Breakdown.
+     */
+    public function generateInvoice($id)
+    {
+        $booking = Booking::with(['room.category', 'guest', 'payments'])
+            ->where('id', $id)
+            ->orWhere('reference_code', $id)
+            ->firstOrFail();
+
+        $d1 = \Carbon\Carbon::parse($booking->check_in_date);
+        $d2 = \Carbon\Carbon::parse($booking->check_out_date);
+        $nights = max(1, $d1->diffInDays($d2));
+
+        $roomRate = (float)($booking->room?->price_etb ?: 2500);
+        $roomSubtotal = $roomRate * $nights;
+        $totalPaid = (float)$booking->payments->where('status', 'verified')->sum('amount_etb');
+        $totalPrice = (float)$booking->total_price_etb;
+        $outstanding = max(0, $totalPrice - $totalPaid);
+
+        $taxVat = round($totalPrice * 0.15, 2);
+        $taxService = round($totalPrice * 0.10, 2);
+        $taxTourism = round($totalPrice * 0.02, 2);
+
+        $invoice = [
+            'invoice_number' => 'INV-' . preg_replace('/[^A-Za-z0-9]/', '', $booking->reference_code),
+            'fiscal_date' => now()->toFormattedDateString(),
+            'hotel_name' => 'Ethiopian Luxury Resort & Heritage Suites',
+            'hotel_tin' => '0048921849',
+            'hotel_vat_reg' => 'VAT-ETH-99214-2026',
+            'hotel_address' => 'Bole Sub-City, Africa Avenue, Addis Ababa, Ethiopia',
+            'hotel_phone' => '+251 11 661 0000',
+            'booking_id' => $booking->id,
+            'reference_code' => $booking->reference_code,
+            'guest' => [
+                'name' => $booking->guest?->full_name ?: 'Valued Guest',
+                'email' => $booking->guest?->email ?: 'guest@ethiopianhotel.com',
+                'phone' => $booking->guest?->phone ?: '+251 911 000000',
+            ],
+            'room' => [
+                'room_number' => $booking->room?->room_number ?: '101',
+                'title' => $booking->room?->title ?: 'Luxury Suite',
+                'category' => $booking->room?->category?->name ?: 'Suite',
+                'nights' => $nights,
+                'rate_per_night' => $roomRate,
+                'subtotal' => $roomSubtotal,
+            ],
+            'stay_period' => [
+                'check_in' => $booking->check_in_date,
+                'check_out' => $booking->check_out_date,
+                'actual_check_in' => $booking->actual_check_in_at,
+                'actual_check_out' => $booking->actual_check_out_at,
+            ],
+            'breakdown' => [
+                'room_charge' => $roomSubtotal,
+                'vat_15' => $taxVat,
+                'service_charge_10' => $taxService,
+                'tourism_levy_2' => $taxTourism,
+                'total_etb' => $totalPrice,
+                'total_usd' => (float)$booking->total_price_usd,
+                'total_paid' => $totalPaid,
+                'outstanding_balance' => $outstanding,
+                'payment_status' => $booking->payment_status,
+                'booking_status' => $booking->booking_status,
+            ],
+            'payments' => $booking->payments->map(function ($p) {
+                return [
+                    'transaction_id' => $p->transaction_id,
+                    'method' => $p->payment_method,
+                    'amount_etb' => (float)$p->amount_etb,
+                    'status' => $p->status,
+                    'paid_at' => $p->paid_at,
+                ];
+            }),
+            'qr_verification_hash' => $booking->qr_verification_hash ?: ('qr_' . rand(10000, 99999)),
+        ];
+
+        return response()->json(['invoice' => $invoice]);
+    }
 }

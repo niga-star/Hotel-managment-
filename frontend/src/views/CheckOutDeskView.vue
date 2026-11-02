@@ -102,13 +102,20 @@
               </td>
               <!-- Action -->
               <td class="py-3.5 px-5 text-right">
-                <button 
-                  @click="executeCheckOut(b)"
-                  :disabled="checkingOutId === b.id"
-                  class="px-3.5 py-2 bg-[#D4A329] hover:bg-[#B8861B] text-slate-900 font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-1.5 ml-auto cursor-pointer">
-                  <span v-if="checkingOutId === b.id" class="animate-spin text-xs">⏳</span>
-                  <span>Check-Out & Invoice</span>
-                </button>
+                <div class="flex items-center justify-end gap-2">
+                  <button 
+                    @click="viewInvoice(b)"
+                    class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer">
+                    <span>📄</span> Tax Invoice
+                  </button>
+                  <button 
+                    @click="executeCheckOut(b)"
+                    :disabled="checkingOutId === b.id"
+                    class="px-3.5 py-2 bg-[#D4A329] hover:bg-[#B8861B] text-slate-900 font-bold text-xs rounded-xl shadow-sm transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                    <span v-if="checkingOutId === b.id" class="animate-spin text-xs">⏳</span>
+                    <span>Check-Out</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -187,17 +194,39 @@
         </div>
       </div>
     </div>
+
+    <!-- Official Ethiopian Tax Invoice Modal -->
+    <TaxInvoiceModal 
+      :is-open="showInvoiceModal" 
+      :invoice-data="activeInvoiceData" 
+      @close="showInvoiceModal = false" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import TaxInvoiceModal from '../components/TaxInvoiceModal.vue';
 
 const eligibleDepartures = ref([]);
 const loading = ref(false);
 const searchQuery = ref('');
 const checkingOutId = ref(null);
 const completedInvoice = ref(null);
+const showInvoiceModal = ref(false);
+const activeInvoiceData = ref(null);
+
+async function viewInvoice(b) {
+  try {
+    const res = await fetch(`/api/v1/bookings/${b.id}/invoice`, { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (data.invoice) {
+      activeInvoiceData.value = data.invoice;
+      showInvoiceModal.value = true;
+    }
+  } catch (err) {
+    console.error('Failed to load invoice:', err);
+  }
+}
 
 function getAuthHeaders() {
   const token = localStorage.getItem('hotel_auth_token');
