@@ -123,11 +123,27 @@ const router = createRouter({
   }
 });
 
-// Navigation Guards: update document title
+// Navigation Guards: update document title and enforce Role-Based Access Control
 router.beforeEach((to, from, next) => {
   if (to.meta && to.meta.title) {
     document.title = `${to.meta.title} | Luxury Ethiopian Hotel PMS`;
   }
+
+  // RBAC Permission Check for Admin section
+  if (to.meta && to.meta.section === 'admin') {
+    const rawUser = localStorage.getItem('hotel_user');
+    let user = null;
+    if (rawUser) {
+      try { user = JSON.parse(rawUser); } catch (e) {}
+    }
+
+    // If user has specific role metadata requirements
+    if (to.meta.requiredRole && user && user.role !== to.meta.requiredRole && user.role !== 'admin' && user.role !== 'super_admin') {
+      alert(`Access Restricted: This view requires '${to.meta.requiredRole}' role credentials.`);
+      return next('/admin/dashboard');
+    }
+  }
+
   next();
 });
 
