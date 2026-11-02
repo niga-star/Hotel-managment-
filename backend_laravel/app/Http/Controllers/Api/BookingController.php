@@ -176,8 +176,9 @@ class BookingController extends Controller
             $referenceCode = "#ETH-{$refNum}";
             $bookingId = 'bk-' . time() . '-' . rand(100, 999);
 
-            $initialStatus = $isWalkIn ? 'confirmed' : ($paymentMode === 'gateway' ? 'pending_payment' : 'pending_verification');
-            $initialPaymentStatus = $isWalkIn ? 'paid' : ($paymentMode === 'gateway' ? 'pending' : 'pending_verification');
+            $isPending = !$isWalkIn && in_array($paymentMode, ['gateway', 'checkout', 'pending', 'manual_receipt']);
+            $initialStatus = $isWalkIn ? 'confirmed' : 'pending_payment';
+            $initialPaymentStatus = $isWalkIn ? 'paid' : 'pending';
 
             $booking = Booking::create([
                 'id' => $bookingId,
@@ -195,7 +196,7 @@ class BookingController extends Controller
                 'is_walk_in' => $isWalkIn ? 1 : 0,
                 'qr_verification_hash' => "qr_hash_{$refNum}",
                 'notes' => json_encode(['meal_plan' => $mealPlan, 'addons' => $addons, 'promo_code' => $promoCode]),
-                'hold_expires_at' => $paymentMode === 'gateway' ? now()->addMinutes(30) : null,
+                'hold_expires_at' => now()->addMinutes(30),
             ]);
 
             // 5. Payment Transaction Record

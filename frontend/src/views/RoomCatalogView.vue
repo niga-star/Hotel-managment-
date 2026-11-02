@@ -389,126 +389,51 @@
             class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#0B4D34]" />
         </div>
 
-        <!-- Payment Method Selection -->
-        <div class="space-y-2 pt-2 border-t border-slate-100">
-          <label class="text-xs font-bold text-slate-700 block">Select Payment Workflow</label>
-          
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <!-- Telebirr (Manual screenshot or direct) -->
-            <button 
-              type="button"
-              @click="paymentMethod = 'telebirr'"
-              :class="paymentMethod === 'telebirr' ? 'border-[#0B4D34] bg-emerald-50/50 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-700'"
-              class="p-2.5 rounded-xl border text-left transition flex items-center gap-2">
-              <span>📱</span>
-              <span>Telebirr</span>
-            </button>
-            
-            <!-- CBE Birr -->
-            <button 
-              type="button"
-              @click="paymentMethod = 'cbe_birr'"
-              :class="paymentMethod === 'cbe_birr' ? 'border-[#0B4D34] bg-emerald-50/50 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-700'"
-              class="p-2.5 rounded-xl border text-left transition flex items-center gap-2">
-              <span>🏛️</span>
-              <span>CBE Birr</span>
-            </button>
+        <!-- Proceed to Payment Action Button -->
+        <div class="pt-3 border-t border-slate-100 space-y-2.5">
+          <button 
+            @click="submitBooking"
+            :disabled="bookingSubmitting || !selectedRoom || !selectedRoom.is_available"
+            class="w-full py-4 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
+            <span v-if="bookingSubmitting" class="flex items-center gap-2">
+              <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Reserving Room & Preparing Payment...
+            </span>
+            <span v-else-if="!selectedRoom">Select a Room to Continue</span>
+            <span v-else-if="!selectedRoom?.is_available">Selected Room Unavailable</span>
+            <span v-else class="flex items-center gap-2">
+              <span>Proceed to Payment</span>
+              <span class="text-base font-bold">→</span>
+            </span>
+          </button>
 
-            <!-- Chapa (Direct Gateway) -->
-            <button 
-              type="button"
-              @click="paymentMethod = 'chapa'"
-              :class="paymentMethod === 'chapa' ? 'border-[#0B4D34] bg-emerald-50/50 text-[#0B4D34] font-bold' : 'border-slate-200 text-slate-700'"
-              class="p-2.5 rounded-xl border text-left transition flex items-center gap-2 col-span-2">
-              <span>💳</span>
-              <span>Chapa (Cards / Visa / Mastercard)</span>
-            </button>
-          </div>
-
-          <!-- Payment Mode Selection -->
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5 text-xs">
-            <label class="font-semibold text-slate-700 block">Payment Mode:</label>
-            <div class="flex items-center gap-4">
-              <label class="flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" v-model="paymentMode" value="manual_receipt" class="accent-[#0B4D34]" />
-                <span>Upload Screenshot/Receipt</span>
-              </label>
-              <label class="flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" v-model="paymentMode" value="gateway" class="accent-[#0B4D34]" />
-                <span>Instant Gateway</span>
-              </label>
-            </div>
+          <!-- Security Trust Badges -->
+          <div class="flex items-center justify-center gap-3 text-[11px] text-slate-400">
+            <span class="flex items-center gap-1 font-mono">🔒 256-Bit SSL</span>
+            <span>•</span>
+            <span>Telebirr / CBE / Chapa</span>
+            <span>•</span>
+            <span>Instant Hold</span>
           </div>
         </div>
-
-        <!-- Reservation CTA -->
-        <button 
-          @click="submitBooking"
-          :disabled="bookingSubmitting || !selectedRoom || !selectedRoom.is_available"
-          class="w-full py-3.5 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-xs rounded-xl shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
-          <span v-if="bookingSubmitting" class="animate-spin text-sm">⏳</span>
-          <span>{{ bookingSubmitting ? 'Atomic Lock in Database...' : (selectedRoom?.is_available ? 'Confirm & Reserve Suite' : 'Selected Room Unavailable') }}</span>
-        </button>
       </div>
     </div>
 
-    <!-- Payment Screenshot / Receipt Upload Modal (Item 6 Option A) -->
-    <div v-if="showReceiptModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="text-lg font-bold text-slate-900">Upload Payment Proof</h3>
-            <p class="text-xs text-slate-500">Booking Reference: <strong class="text-[#0B4D34] font-mono">{{ activeBooking?.reference_code }}</strong></p>
-          </div>
-          <button @click="showReceiptModal = false" class="text-slate-400 hover:text-slate-600 text-sm">✕</button>
-        </div>
-
-        <!-- Hotel Verified Account Transfer Instructions -->
-        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-1 text-emerald-900">
-          <p class="font-bold">🏨 Hotel Account Transfer Details:</p>
-          <p v-if="paymentMethod === 'telebirr'">• Telebirr Merchant: <strong>100223</strong> (Ethiopian Boutique Stays)</p>
-          <p v-else>• CBE Account: <strong>100023456789</strong> (Commercial Bank of Ethiopia)</p>
-          <p>• Amount Due: <strong>ETB {{ activeBooking?.total_price_etb?.toLocaleString() }}</strong></p>
-        </div>
-
-        <!-- Drag & Drop Receipt Upload Box -->
-        <div 
-          @click="$refs.receiptInput.click()"
-          class="border-2 border-dashed border-[#0B4D34]/40 hover:border-[#0B4D34] rounded-2xl p-6 text-center cursor-pointer bg-slate-50 transition">
-          <input 
-            ref="receiptInput" 
-            type="file" 
-            accept="image/png,image/jpeg,image/webp" 
-            @change="onReceiptFileSelected" 
-            class="hidden" />
-          
-          <div v-if="receiptPreview" class="space-y-2">
-            <img :src="receiptPreview" class="max-h-48 mx-auto rounded-xl shadow-sm border" alt="Receipt preview" />
-            <p class="text-xs text-emerald-600 font-semibold">✓ Image selected: {{ receiptFile?.name }}</p>
-          </div>
-          <div v-else class="space-y-2">
-            <div class="text-3xl">🧾</div>
-            <p class="text-xs font-semibold text-slate-700">Click or drag & drop payment screenshot here</p>
-            <p class="text-[11px] text-slate-400">PNG, JPG or WebP up to 10MB</p>
-          </div>
-        </div>
-
-        <div class="flex gap-2 pt-2">
-          <button 
-            type="button" 
-            @click="uploadReceiptProof"
-            :disabled="!receiptFile || uploadingReceipt"
-            class="flex-1 py-3 bg-[#0B4D34] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-50">
-            {{ uploadingReceipt ? 'Uploading & Notifying Admin...' : 'Submit Receipt for Verification' }}
-          </button>
-          <button 
-            type="button" 
-            @click="skipReceiptForNow"
-            class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">
-            Upload Later
-          </button>
-        </div>
+    <!-- Sticky Mobile Floating Checkout Pill -->
+    <div 
+      v-if="selectedRoom && selectedRoom.is_available"
+      class="lg:hidden fixed bottom-4 left-4 right-4 z-40 bg-[#064E3B] text-white p-3.5 rounded-2xl shadow-2xl border border-yellow-200/30 flex items-center justify-between backdrop-blur-md">
+      <div>
+        <div class="text-[10px] text-yellow-200/90 uppercase font-bold tracking-wider">Room {{ selectedRoom.room_number }} • {{ nights }} Night{{ nights > 1 ? 's' : '' }}</div>
+        <div class="text-sm font-black text-white">{{ formatPrice(finalPriceEtb, finalPriceUsd) }}</div>
       </div>
+      <button 
+        @click="submitBooking"
+        :disabled="bookingSubmitting"
+        class="px-5 py-2.5 bg-[#D4A329] hover:bg-yellow-400 text-slate-950 font-bold text-xs rounded-xl shadow transition cursor-pointer flex items-center gap-1.5">
+        <span v-if="bookingSubmitting">Processing...</span>
+        <span v-else>Proceed to Payment →</span>
+      </button>
     </div>
   </div>
 </template>
@@ -661,8 +586,6 @@ function removePromo() {
   promoInput.value = '';
 }
 
-const paymentMethod = ref('telebirr');
-const paymentMode = ref('manual_receipt');
 const bookingSubmitting = ref(false);
 
 // Guest Form
@@ -671,13 +594,6 @@ const guestForm = ref({
   email: '',
   phone: ''
 });
-
-// Receipt Upload Modal
-const showReceiptModal = ref(false);
-const activeBooking = ref(null);
-const receiptFile = ref(null);
-const receiptPreview = ref(null);
-const uploadingReceipt = ref(false);
 
 function getAuthHeaders() {
   const token = localStorage.getItem('hotel_auth_token');
@@ -797,6 +713,19 @@ async function submitBooking() {
     return;
   }
 
+  if (!guestForm.value.name.trim()) {
+    alert('Please enter your full name before proceeding to payment.');
+    return;
+  }
+  if (!guestForm.value.email.trim() || !guestForm.value.email.includes('@')) {
+    alert('Please provide a valid email address for your booking confirmation.');
+    return;
+  }
+  if (!guestForm.value.phone.trim()) {
+    alert('Please provide a phone number for SMS and reservation updates.');
+    return;
+  }
+
   bookingSubmitting.value = true;
   try {
     const payload = {
@@ -808,11 +737,11 @@ async function submitBooking() {
       promo_code: appliedPromo.value ? appliedPromo.value.code : null,
       meal_plan: selectedMealPlan.value,
       addons: selectedAddons.value,
-      payment_method: paymentMethod.value,
-      payment_mode: paymentMode.value,
-      guest_name: guestForm.value.name.trim() || 'Valued Guest',
-      guest_email: guestForm.value.email.trim() || 'guest@ethiopianhotel.com',
-      guest_phone: guestForm.value.phone.trim() || '+251 911 000000'
+      payment_method: 'cbe_birr',
+      payment_mode: 'checkout',
+      guest_name: guestForm.value.name.trim(),
+      guest_email: guestForm.value.email.trim().toLowerCase(),
+      guest_phone: guestForm.value.phone.trim()
     };
 
     const res = await fetch('/api/v1/bookings', {
@@ -829,14 +758,10 @@ async function submitBooking() {
       throw new Error(data.error || 'Failed to complete booking');
     }
 
-    activeBooking.value = data.booking;
+    emit('booking-created', data.booking);
 
-    if (paymentMode.value === 'manual_receipt') {
-      showReceiptModal.value = true;
-    } else {
-      alert(`🎉 Reservation created! Reference: ${data.booking.reference_code}. Opening your digital receipt...`);
-      emit('booking-created', data.booking);
-    }
+    // Direct navigation to dedicated separate payment page
+    router.push(`/payment/${data.booking.id}`);
 
     // Refresh rooms to reflect new hold
     fetchRooms();
@@ -844,48 +769,6 @@ async function submitBooking() {
     alert(err.message);
   } finally {
     bookingSubmitting.value = false;
-  }
-}
-
-function onReceiptFileSelected(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  receiptFile.value = file;
-  receiptPreview.value = URL.createObjectURL(file);
-}
-
-async function uploadReceiptProof() {
-  if (!receiptFile.value || !activeBooking.value) return;
-
-  uploadingReceipt.value = true;
-  const formData = new FormData();
-  formData.append('receipt', receiptFile.value);
-  formData.append('booking_id', activeBooking.value.id);
-  formData.append('payment_id', activeBooking.value.payment_id);
-
-  try {
-    const res = await fetch('/api/v1/payments/upload-receipt', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: formData
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Upload failed');
-
-    alert('✓ Receipt uploaded successfully! Staff will verify your payment within our 20-minute review target.');
-    showReceiptModal.value = false;
-    emit('booking-created', activeBooking.value);
-  } catch (err) {
-    alert('Receipt upload error: ' + err.message);
-  } finally {
-    uploadingReceipt.value = false;
-  }
-}
-
-function skipReceiptForNow() {
-  showReceiptModal.value = false;
-  if (activeBooking.value) {
-    emit('booking-created', activeBooking.value);
   }
 }
 
