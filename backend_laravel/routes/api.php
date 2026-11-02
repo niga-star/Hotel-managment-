@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/categories', [RoomController::class, 'categories']);
     Route::get('/rooms/categories', [RoomController::class, 'categories']);
     Route::get('/rooms/floor-map', [RoomController::class, 'floorMap']);
+    Route::get('/rooms/{id}/booked-dates', [RoomController::class, 'bookedDates']);
     Route::get('/rooms', [RoomController::class, 'index']);
     Route::get('/rooms/{id}', [RoomController::class, 'show']);
     Route::post('/rooms', [RoomController::class, 'store']);

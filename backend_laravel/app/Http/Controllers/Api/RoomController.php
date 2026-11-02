@@ -264,14 +264,39 @@ class RoomController extends Controller
             ];
         })->values();
 
+    /**
+     * Get booked date intervals and disabled date strings for a specific room.
+     */
+    public function bookedDates($id)
+    {
+        $room = Room::where('id', $id)->orWhere('room_number', $id)->firstOrFail();
+
+        $bookings = Booking::where('room_id', $room->id)
+            ->whereIn('booking_status', ['confirmed', 'checked_in', 'pending_verification'])
+            ->where('check_out_date', '>=', now()->toDateString())
+            ->get(['id', 'reference_code', 'check_in_date', 'check_out_date']);
+
+        $blockedRanges = [];
+        $blockedDates = [];
+
+        foreach ($bookings as $b) {
+            $blockedRanges[] = [
+                'reference' => $b->reference_code,
+                'start' => $b->check_in_date,
+                'end' => $b->check_out_date,
+            ];
+
+            $period = \Carbon\CarbonPeriod::create($b->check_in_date, \Carbon\Carbon::parse($b->check_out_date)->subDay());
+            foreach ($period as $date) {
+                $blockedDates[] = $date->format('Y-m-d');
+            }
+        }
+
         return response()->json([
-            'floors' => $floors,
-            'summary' => [
-                'total_rooms' => $rooms->count(),
-                'available' => $rooms->where('status', 'available')->count(),
-                'occupied' => $rooms->where('status', 'occupied')->count(),
-                'maintenance' => $rooms->where('status', 'maintenance')->count(),
-            ],
+            'room_id' => $room->id,
+            'room_number' => $room->room_number,
+            'blocked_ranges' => $blockedRanges,
+            'blocked_dates' => array_values(array_unique($blockedDates)),
         ]);
     }
 }

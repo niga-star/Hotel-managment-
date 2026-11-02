@@ -86,6 +86,7 @@
               <label class="text-[11px] font-bold text-slate-600 block mb-1">Check-In</label>
               <input 
                 v-model="checkInDate" 
+                :min="minCheckInDate"
                 type="date" 
                 class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#0B4D34]" />
             </div>
@@ -93,9 +94,35 @@
               <label class="text-[11px] font-bold text-slate-600 block mb-1">Check-Out</label>
               <input 
                 v-model="checkOutDate" 
+                :min="checkInDate"
                 type="date" 
                 class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#0B4D34]" />
             </div>
+          </div>
+
+          <!-- Dynamic Calendar Availability Indicator -->
+          <div v-if="blockedDates.length > 0" class="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 text-xs space-y-1.5">
+            <div class="flex items-center justify-between text-amber-800 font-bold text-[11px]">
+              <span>📅 Reserved Dates Indicator</span>
+              <span class="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono">{{ blockedDates.length }} days booked</span>
+            </div>
+            <p class="text-[10px] text-amber-700">
+              The following dates are already booked:
+            </p>
+            <div class="flex flex-wrap gap-1 max-h-16 overflow-y-auto pt-0.5">
+              <span 
+                v-for="d in blockedDates" 
+                :key="d"
+                class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-mono text-[9px] line-through">
+                {{ d }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Collision Warning Alert -->
+          <div v-if="hasDateOverlap" class="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs text-rose-800 font-semibold flex items-center gap-2">
+            <span>⚠️</span>
+            <span>Selected dates overlap with an active reservation. Please choose alternate dates.</span>
           </div>
 
           <!-- Total calculation -->
@@ -139,9 +166,11 @@
         <!-- Book Now Button (Screen 5) -->
         <button 
           @click="handleBookNow"
-          :disabled="bookingSubmitting"
-          class="w-full py-4 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-98 disabled:opacity-50 cursor-pointer">
-          {{ bookingSubmitting ? 'Checking Availability & Locking...' : 'Book Now' }}
+          :disabled="bookingSubmitting || hasDateOverlap"
+          class="w-full py-4 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+          <span v-if="bookingSubmitting">Checking Availability & Locking...</span>
+          <span v-else-if="hasDateOverlap">Unavailable for Selected Dates</span>
+          <span v-else>Book Now</span>
         </button>
 
         <p class="text-[11px] text-center text-slate-400">
@@ -195,9 +224,36 @@ dayAfter.setDate(dayAfter.getDate() + 3);
 
 const checkInDate = ref(tomorrow.toISOString().split('T')[0]);
 const checkOutDate = ref(dayAfter.toISOString().split('T')[0]);
+const minCheckInDate = ref(today.toISOString().split('T')[0]);
 const adults = ref('2');
 const children = ref('0');
 const bookingSubmitting = ref(false);
+const blockedDates = ref([]);
+const blockedRanges = ref([]);
+
+const hasDateOverlap = computed(() => {
+  if (!checkInDate.value || !checkOutDate.value) return false;
+  const dStart = new Date(checkInDate.value);
+  const dEnd = new Date(checkOutDate.value);
+  if (dEnd <= dStart) return true;
+
+  return blockedRanges.value.some(r => {
+    const rStart = new Date(r.start);
+    const rEnd = new Date(r.end);
+    return (dStart < rEnd && dEnd > rStart);
+  });
+});
+
+async function fetchBookedDates() {
+  try {
+    const res = await fetch(`/api/v1/rooms/${effectiveRoomId.value}/booked-dates`);
+    const data = await res.json();
+    blockedDates.value = data.blocked_dates || [];
+    blockedRanges.value = data.blocked_ranges || [];
+  } catch (err) {
+    console.error('Failed to fetch booked dates:', err);
+  }
+}
 
 const nights = computed(() => {
   const d1 = new Date(checkInDate.value);
@@ -287,5 +343,6 @@ async function handleBookNow() {
 
 onMounted(() => {
   fetchRoom();
+  fetchBookedDates();
 });
 </script>
