@@ -6,6 +6,7 @@ import RoomCatalogView from '../views/RoomCatalogView.vue';
 import RoomDetailsView from '../views/RoomDetailsView.vue';
 import MyBookingsView from '../views/MyBookingsView.vue';
 import GuestPortalView from '../views/GuestPortalView.vue';
+import CheckoutPaymentView from '../views/CheckoutPaymentView.vue';
 
 // Admin PMS Subsystem Views
 import AdminDashboardView from '../views/AdminDashboardView.vue';
@@ -51,6 +52,13 @@ const routes = [
     name: 'GuestPortal',
     component: GuestPortalView,
     meta: { section: 'guest', title: 'VIP Guest Portal & Digital Room Key' }
+  },
+  {
+    path: '/payment/:id',
+    name: 'CheckoutPayment',
+    component: CheckoutPaymentView,
+    props: true,
+    meta: { section: 'guest', title: 'Secure Payment Checkout' }
   },
 
   // Admin & Staff PMS Routes

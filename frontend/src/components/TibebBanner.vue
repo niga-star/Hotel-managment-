@@ -50,7 +50,10 @@
           <span>{{ lang === 'en' ? '🇪🇹 አማርኛ' : '🇬🇧 English' }}</span>
         </button>
 
-        <div class="bg-black/25 backdrop-blur-sm p-1 rounded-full flex border border-white/10">
+        <!-- Quick Switcher Bar for Authorized Staff & Admins Only -->
+        <div 
+          v-if="currentUser && ['super_admin', 'admin', 'receptionist'].includes(currentUser.role)"
+          class="bg-black/25 backdrop-blur-sm p-1 rounded-full flex border border-white/10">
           <button 
             @click="handleSwitchSection('guest')"
             :class="currentSection === 'guest' ? 'bg-[#D4A329] text-slate-900 font-semibold shadow-sm' : 'text-slate-200 hover:text-white'"

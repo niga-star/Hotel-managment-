@@ -227,6 +227,62 @@ class BookingController extends Controller
         });
     }
 
+    /**
+     * Get specific booking details for payment checkout page.
+     */
+    public function show($id)
+    {
+        $booking = Booking::with(['room.category', 'room.images', 'guest', 'payments'])
+            ->where('id', $id)
+            ->orWhere('reference_code', $id)
+            ->firstOrFail();
+
+        $d1 = Carbon::parse($booking->check_in_date);
+        $d2 = Carbon::parse($booking->check_out_date);
+        $nights = max(1, $d1->diffInDays($d2));
+
+        $roomRate = (float)($booking->room?->price_etb ?: 2500);
+        $subtotal = $roomRate * $nights;
+        $totalPrice = (float)$booking->total_price_etb;
+
+        $primaryImg = $booking->room?->images->where('is_primary', 1)->first() ?: $booking->room?->images->first();
+
+        return response()->json([
+            'booking' => [
+                'id' => $booking->id,
+                'reference_code' => $booking->reference_code,
+                'booking_status' => $booking->booking_status,
+                'payment_status' => $booking->payment_status,
+                'check_in_date' => $booking->check_in_date,
+                'check_out_date' => $booking->check_out_date,
+                'nights' => $nights,
+                'adults' => $booking->adults_count,
+                'children' => $booking->children_count,
+                'total_price_etb' => $totalPrice,
+                'total_price_usd' => (float)$booking->total_price_usd,
+                'subtotal_etb' => $subtotal,
+                'tax_vat_15' => round($totalPrice * 0.15, 2),
+                'tax_service_10' => round($totalPrice * 0.10, 2),
+                'tax_tourism_2' => round($totalPrice * 0.02, 2),
+                'room' => [
+                    'id' => $booking->room?->id,
+                    'room_number' => $booking->room?->room_number,
+                    'title' => $booking->room?->title,
+                    'category_name' => $booking->room?->category?->name ?: 'Deluxe',
+                    'floor' => $booking->room?->floor,
+                    'image_url' => $primaryImg?->image_url ?: 'https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&fit=crop',
+                ],
+                'guest' => [
+                    'full_name' => $booking->guest?->full_name ?: 'Valued Guest',
+                    'email' => $booking->guest?->email ?: 'guest@ethiopianhotel.com',
+                    'phone' => $booking->guest?->phone ?: '+251911000000',
+                ],
+                'payments' => $booking->payments,
+                'hold_expires_at' => $booking->hold_expires_at,
+            ],
+        ]);
+    }
+
     public function myBookings(Request $request)
     {
         $userId = $request->user()?->id ?: 'usr-guest-6';

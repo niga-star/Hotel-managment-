@@ -43,12 +43,14 @@ Route::prefix('v1')->group(function () {
     // --- Bookings & PMS Lifecycle ---
     Route::post('/bookings/validate-promo', [BookingController::class, 'validatePromo']);
     Route::post('/bookings', [BookingController::class, 'store']);
+    Route::get('/bookings', [BookingController::class, 'desk']);
     Route::get('/bookings/my-bookings', [BookingController::class, 'myBookings']);
     Route::get('/guest/portal-summary', [BookingController::class, 'guestPortalSummary']);
     Route::get('/bookings/desk', [BookingController::class, 'desk']);
     Route::get('/bookings/check-in-eligible', [BookingController::class, 'checkInEligible']);
-    Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn']);
     Route::get('/bookings/check-out-eligible', [BookingController::class, 'checkOutEligible']);
+    Route::get('/bookings/{id}', [BookingController::class, 'show']);
+    Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn']);
     Route::post('/bookings/{id}/check-out', [BookingController::class, 'checkOut']);
     Route::get('/bookings/{id}/invoice', [BookingController::class, 'generateInvoice']);
 

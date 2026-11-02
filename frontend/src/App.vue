@@ -196,7 +196,11 @@ function handleLogout() {
 }
 
 function onBookingCreated(booking) {
-  router.push('/my-bookings');
+  if (booking && booking.id) {
+    router.push(`/payment/${booking.id}`);
+  } else {
+    router.push('/my-bookings');
+  }
 }
 
 function onRegisterSuccess(payload) {

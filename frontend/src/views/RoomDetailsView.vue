@@ -161,16 +161,53 @@
               </select>
             </div>
           </div>
+
+          <!-- Guest Contact Details -->
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+            <h4 class="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Guest Contact Information</h4>
+            <div>
+              <label class="text-[10px] text-slate-500 font-medium block mb-0.5">Full Name *</label>
+              <input 
+                v-model="guestName" 
+                type="text" 
+                placeholder="Abebe Kebede" 
+                class="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0B4D34]" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] text-slate-500 font-medium block mb-0.5">Email *</label>
+                <input 
+                  v-model="guestEmail" 
+                  type="email" 
+                  placeholder="name@domain.com" 
+                  class="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0B4D34]" />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-medium block mb-0.5">Phone Number *</label>
+                <input 
+                  v-model="guestPhone" 
+                  type="tel" 
+                  placeholder="+251 911 234567" 
+                  class="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0B4D34]" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Book Now Button (Screen 5) -->
+        <!-- Proceed to Payment Button -->
         <button 
           @click="handleBookNow"
           :disabled="bookingSubmitting || hasDateOverlap"
-          class="w-full py-4 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-          <span v-if="bookingSubmitting">Checking Availability & Locking...</span>
+          class="w-full py-4 bg-gradient-to-r from-[#0B4D34] to-[#107550] hover:brightness-110 text-white font-bold text-sm rounded-2xl shadow-lg transition transform active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2">
+          <span v-if="bookingSubmitting" class="flex items-center gap-2">
+            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            Locking Room & Preparing Payment...
+          </span>
           <span v-else-if="hasDateOverlap">Unavailable for Selected Dates</span>
-          <span v-else>Book Now</span>
+          <span v-else class="flex items-center gap-1.5">
+            <span>Proceed to Payment</span>
+            <span class="text-base">→</span>
+          </span>
         </button>
 
         <p class="text-[11px] text-center text-slate-400">
@@ -230,6 +267,11 @@ const children = ref('0');
 const bookingSubmitting = ref(false);
 const blockedDates = ref([]);
 const blockedRanges = ref([]);
+
+// Guest contact fields
+const guestName = ref('');
+const guestEmail = ref('');
+const guestPhone = ref('');
 
 const hasDateOverlap = computed(() => {
   if (!checkInDate.value || !checkOutDate.value) return false;
@@ -299,25 +341,32 @@ async function fetchRoom() {
 }
 
 async function handleBookNow() {
+  if (!guestName.value.trim()) {
+    alert('Please enter your full name before proceeding to payment.');
+    return;
+  }
+  if (!guestEmail.value.trim() || !guestEmail.value.includes('@')) {
+    alert('Please provide a valid email address for your booking confirmation.');
+    return;
+  }
+  if (!guestPhone.value.trim()) {
+    alert('Please provide a phone number for SMS and reservation alerts.');
+    return;
+  }
+
   bookingSubmitting.value = true;
   try {
-    const savedUser = localStorage.getItem('hotel_user');
-    let u = { full_name: 'Valued Guest', email: 'guest@ethiopianhotel.com', phone: '+251 911 000000' };
-    if (savedUser) {
-      try { u = JSON.parse(savedUser); } catch (e) {}
-    }
-
     const payload = {
       room_id: room.value.id,
       check_in_date: checkInDate.value,
       check_out_date: checkOutDate.value,
       adults: parseInt(adults.value),
       children: parseInt(children.value),
-      payment_method: 'telebirr',
+      payment_method: 'cbe_birr',
       payment_mode: 'manual_receipt',
-      guest_name: u.full_name,
-      guest_email: u.email,
-      guest_phone: u.phone
+      guest_name: guestName.value.trim(),
+      guest_email: guestEmail.value.trim().toLowerCase(),
+      guest_phone: guestPhone.value.trim()
     };
 
     const res = await fetch('/api/v1/bookings', {
@@ -332,8 +381,9 @@ async function handleBookNow() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to book');
 
-    alert(`🎉 Reservation created! Reference code: ${data.booking.reference_code}`);
     emit('booking-created', data.booking);
+    // Direct navigation to dedicated separate payment page
+    router.push(`/payment/${data.booking.id}`);
   } catch (err) {
     alert(err.message);
   } finally {
@@ -344,5 +394,15 @@ async function handleBookNow() {
 onMounted(() => {
   fetchRoom();
   fetchBookedDates();
+
+  const savedUser = localStorage.getItem('hotel_user');
+  if (savedUser) {
+    try {
+      const u = JSON.parse(savedUser);
+      if (u.full_name) guestName.value = u.full_name;
+      if (u.email) guestEmail.value = u.email;
+      if (u.phone) guestPhone.value = u.phone;
+    } catch (e) {}
+  }
 });
 </script>
