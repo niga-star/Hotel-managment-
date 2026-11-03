@@ -20,8 +20,26 @@ class User extends Authenticatable
         'role',
         'is_verified',
         'full_name',
+        'first_name',
+        'last_name',
+        'gender',
+        'date_of_birth',
+        'nationality',
         'email',
         'phone',
+        'address',
+        'city',
+        'country',
+        'id_type',
+        'id_number',
+        'id_issue_country',
+        'id_expiry_date',
+        'vip_status',
+        'preferences',
+        'notes',
+        'is_active',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'password_hash',
         'verification_token',
         'verification_code',
@@ -40,6 +58,14 @@ class User extends Authenticatable
         'reset_password_token',
     ];
 
+    protected $casts = [
+        'is_verified' => 'boolean',
+        'is_active' => 'boolean',
+        'preferences' => 'array',
+        'date_of_birth' => 'date:Y-m-d',
+        'id_expiry_date' => 'date:Y-m-d',
+    ];
+
     public function getAuthPassword()
     {
         return $this->password_hash;
@@ -48,5 +74,43 @@ class User extends Authenticatable
     public function bookings()
     {
         return $this->hasMany(Booking::class, 'guest_id', 'id');
+    }
+
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class, 'resource_id', 'id');
+    }
+
+    /**
+     * Masked ID number for privacy protection (e.g. '******4829').
+     */
+    public function getMaskedIdNumberAttribute(): ?string
+    {
+        if (empty($this->id_number)) {
+            return null;
+        }
+        $len = strlen($this->id_number);
+        if ($len <= 4) {
+            return str_repeat('*', $len);
+        }
+        return str_repeat('*', $len - 4) . substr($this->id_number, -4);
+    }
+
+    /**
+     * Number of completed stays (checked out).
+     */
+    public function getStaysCountAttribute(): int
+    {
+        return $this->bookings()->where('booking_status', 'checked_out')->count();
+    }
+
+    /**
+     * Determines whether this guest is a returning guest (repeat visitor).
+     */
+    public function getIsReturningAttribute(): bool
+    {
+        return $this->bookings()
+            ->whereIn('booking_status', ['checked_out', 'checked_in', 'confirmed'])
+            ->count() >= 2;
     }
 }
