@@ -209,24 +209,36 @@
           <!-- Room Status Toggle Control -->
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Operational Status</label>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
               <button 
                 @click="updateRoomStatus('available')"
-                :class="activeModalRoom.status === 'available' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                class="py-2 px-3 rounded-lg text-xs transition">
+                :class="activeModalRoom.status === 'available' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                class="py-2 px-2 rounded-lg text-xs transition text-center">
                 🟢 Available
               </button>
               <button 
+                @click="updateRoomStatus('reserved')"
+                :class="activeModalRoom.status === 'reserved' ? 'bg-blue-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                class="py-2 px-2 rounded-lg text-xs transition text-center">
+                🔵 Reserved
+              </button>
+              <button 
                 @click="updateRoomStatus('occupied')"
-                :class="activeModalRoom.status === 'occupied' ? 'bg-rose-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                class="py-2 px-3 rounded-lg text-xs transition">
+                :class="activeModalRoom.status === 'occupied' ? 'bg-rose-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                class="py-2 px-2 rounded-lg text-xs transition text-center">
                 🔴 Occupied
               </button>
               <button 
+                @click="updateRoomStatus('cleaning')"
+                :class="activeModalRoom.status === 'cleaning' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                class="py-2 px-2 rounded-lg text-xs transition text-center">
+                🟣 Cleaning
+              </button>
+              <button 
                 @click="updateRoomStatus('maintenance')"
-                :class="activeModalRoom.status === 'maintenance' ? 'bg-amber-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                class="py-2 px-3 rounded-lg text-xs transition">
-                🛠️ Maintenance
+                :class="activeModalRoom.status === 'maintenance' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                class="py-2 px-2 rounded-lg text-xs transition text-center">
+                🟡 Maintenance
               </button>
             </div>
           </div>
@@ -331,15 +343,19 @@ async function updateHousekeepingStatus(newStatus) {
 
 function getRoomBorderClass(room) {
   if (room.status === 'occupied') return 'border-rose-300 hover:border-rose-500';
-  if (room.status === 'maintenance') return 'border-amber-300 hover:border-amber-500';
-  if (room.housekeeping_status === 'dirty') return 'border-purple-300 hover:border-purple-500';
+  if (room.status === 'reserved') return 'border-blue-300 hover:border-blue-500';
+  if (room.status === 'cleaning' || room.housekeeping_status === 'dirty') return 'border-purple-300 hover:border-purple-500';
+  if (room.status === 'maintenance' || room.housekeeping_status === 'maintenance') return 'border-amber-300 hover:border-amber-500';
   return 'border-emerald-300 hover:border-emerald-500';
 }
 
 function getStatusBadgeClass(status) {
   if (status === 'available') return 'bg-emerald-100 text-emerald-800';
+  if (status === 'reserved') return 'bg-blue-100 text-blue-800';
   if (status === 'occupied') return 'bg-rose-100 text-rose-800';
-  return 'bg-amber-100 text-amber-800';
+  if (status === 'cleaning') return 'bg-purple-100 text-purple-800';
+  if (status === 'maintenance') return 'bg-amber-100 text-amber-800';
+  return 'bg-slate-100 text-slate-700';
 }
 
 function getHousekeepingTextClass(status) {

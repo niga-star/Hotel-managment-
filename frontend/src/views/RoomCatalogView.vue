@@ -5,16 +5,26 @@
       <!-- Category Pills -->
       <div class="flex items-center space-x-2 overflow-x-auto pb-1 xl:pb-0">
         <button 
-          v-for="cat in ['all', 'suite', 'deluxe', 'standard']"
-          :key="cat"
-          @click="selectedCategory = cat; fetchRooms()"
+          @click="selectedCategory = 'all'; fetchRooms()"
           :class="[
-            selectedCategory === cat
+            selectedCategory === 'all'
               ? 'bg-[#0B4D34] text-white shadow-sm font-bold'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium'
           ]"
           class="px-5 py-2.5 rounded-full text-xs capitalize transition flex-shrink-0 cursor-pointer">
-          {{ cat === 'all' ? '🏨 All Rooms' : cat }}
+          🏨 All Rooms
+        </button>
+        <button 
+          v-for="cat in catalogCategories"
+          :key="cat.id"
+          @click="selectedCategory = cat.slug || cat.name; fetchRooms()"
+          :class="[
+            selectedCategory === (cat.slug || cat.name)
+              ? 'bg-[#0B4D34] text-white shadow-sm font-bold'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium'
+          ]"
+          class="px-5 py-2.5 rounded-full text-xs capitalize transition flex-shrink-0 cursor-pointer">
+          {{ cat.name }}
         </button>
       </div>
 
@@ -511,6 +521,7 @@ function openDetails(roomId) {
 
 const isSummaryOpen = ref(false);
 const selectedCategory = ref('all');
+const catalogCategories = ref([]);
 const searchQuery = ref('');
 const currency = ref('ETB');
 const rooms = ref([]);
@@ -832,6 +843,16 @@ async function submitBooking() {
   }
 }
 
+async function fetchCatalogCategories() {
+  try {
+    const res = await fetch('/api/v1/categories');
+    const data = await res.json();
+    catalogCategories.value = data.categories || [];
+  } catch (err) {
+    console.error('Failed to load categories in catalog:', err);
+  }
+}
+
 onMounted(() => {
   // Autofill user info if authenticated
   const savedUser = localStorage.getItem('hotel_user');
@@ -844,6 +865,7 @@ onMounted(() => {
     } catch (e) {}
   }
 
+  fetchCatalogCategories();
   fetchFavorites();
   fetchRooms();
 });

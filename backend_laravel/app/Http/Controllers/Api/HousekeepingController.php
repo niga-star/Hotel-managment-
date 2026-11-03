@@ -50,6 +50,39 @@ class HousekeepingController extends Controller
 
         $oldStatus = $room->housekeeping_status;
         $room->housekeeping_status = $validated['housekeeping_status'];
+
+        $today = now()->toDateString();
+        $isOccupied = ($room->status === 'occupied') || \App\Models\Booking::where(function ($q) use ($room) {
+                $q->where('room_id', $room->id)
+                  ->orWhereHas('bookingRooms', fn($br) => $br->where('room_id', $room->id));
+            })
+            ->where('booking_status', 'checked_in')
+            ->where('check_in_date', '<=', $today)
+            ->where('check_out_date', '>=', $today)
+            ->exists();
+
+        // Operational status transitions linked to housekeeping
+        if ($validated['housekeeping_status'] === 'maintenance') {
+            $room->status = 'maintenance';
+        } elseif ($validated['housekeeping_status'] === 'dirty') {
+            if (!$isOccupied) {
+                $room->status = 'cleaning';
+            }
+        } elseif (in_array($validated['housekeeping_status'], ['clean', 'inspected'])) {
+            if (!$isOccupied && $room->status !== 'maintenance') {
+                $hasUpcomingReservationToday = \App\Models\Booking::where(function ($q) use ($room) {
+                        $q->where('room_id', $room->id)
+                          ->orWhereHas('bookingRooms', fn($br) => $br->where('room_id', $room->id));
+                    })
+                    ->whereIn('booking_status', ['confirmed', 'pending_verification'])
+                    ->where('check_in_date', '<=', $today)
+                    ->where('check_out_date', '>', $today)
+                    ->exists();
+
+                $room->status = $hasUpcomingReservationToday ? 'reserved' : 'available';
+            }
+        }
+
         $room->save();
 
         AuditLog::create([

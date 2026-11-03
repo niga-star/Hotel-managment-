@@ -9,12 +9,12 @@ class Amenity extends Model
     protected $table = 'amenities';
     public $incrementing = false;
     protected $keyType = 'string';
+    public $timestamps = false;
 
     protected $fillable = [
         'id',
         'name',
-        'icon',
-        'category',
+        'icon_name',
     ];
 
     public function rooms()
