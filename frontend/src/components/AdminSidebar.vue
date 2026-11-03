@@ -63,6 +63,7 @@ const navItems = [
   { id: 'floor-map', label: 'Visual Floor Map', icon: '🏢', path: '/admin/floor-map' },
   { id: 'manage-rooms', label: 'Manage Rooms', icon: '🛏️', path: '/admin/rooms' },
   { id: 'bookings', label: 'Bookings Desk', icon: '📅', path: '/admin/bookings' },
+  { id: 'guests', label: 'Guest Directory', icon: '👥', path: '/admin/guests' },
   { id: 'check-in', label: 'Check-In Desk', icon: '🛎️', path: '/admin/check-in' },
   { id: 'check-out', label: 'Check-Out Desk', icon: '🚪', path: '/admin/check-out' },
   { id: 'housekeeping', label: 'Housekeeping', icon: '🧹', path: '/admin/housekeeping' },

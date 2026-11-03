@@ -12,6 +12,7 @@ import CheckoutPaymentView from '../views/CheckoutPaymentView.vue';
 import AdminDashboardView from '../views/AdminDashboardView.vue';
 import ManageRoomsView from '../views/ManageRoomsView.vue';
 import BookingDeskView from '../views/BookingDeskView.vue';
+import GuestManagementView from '../views/GuestManagementView.vue';
 import CheckInDeskView from '../views/CheckInDeskView.vue';
 import CheckOutDeskView from '../views/CheckOutDeskView.vue';
 import PaymentsView from '../views/PaymentsView.vue';
@@ -89,6 +90,12 @@ const routes = [
     name: 'AdminBookings',
     component: BookingDeskView,
     meta: { section: 'admin', title: 'Bookings Operations Desk', adminView: 'bookings' }
+  },
+  {
+    path: '/admin/guests',
+    name: 'AdminGuests',
+    component: GuestManagementView,
+    meta: { section: 'admin', title: 'Guest Directory & Profiles CRM', adminView: 'guests' }
   },
   {
     path: '/admin/check-in',
