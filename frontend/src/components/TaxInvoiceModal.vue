@@ -83,53 +83,72 @@
           <thead>
             <tr class="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
               <th class="py-2.5 px-3">Description</th>
-              <th class="py-2.5 px-3 text-center">Nights</th>
-              <th class="py-2.5 px-3 text-right">Daily Rate</th>
+              <th class="py-2.5 px-3 text-center">Qty / Nights</th>
+              <th class="py-2.5 px-3 text-right">Unit Rate</th>
               <th class="py-2.5 px-3 text-right">Amount (ETB)</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
-            <tr>
-              <td class="py-3 px-3 font-semibold text-slate-800">
-                Accommodation: {{ invoiceData?.room?.title }}
+            <!-- Room charges -->
+            <tr v-for="(rm, idx) in (invoiceData?.room_items || [])" :key="'rm-'+idx">
+              <td class="py-2.5 px-3 font-semibold text-slate-800">
+                🏨 {{ rm.description }}
               </td>
-              <td class="py-3 px-3 text-center">{{ invoiceData?.room?.nights }}</td>
-              <td class="py-3 px-3 text-right font-mono">{{ invoiceData?.room?.rate_per_night?.toLocaleString() }}</td>
-              <td class="py-3 px-3 text-right font-mono font-bold">{{ invoiceData?.breakdown?.room_charge?.toLocaleString() }}</td>
+              <td class="py-2.5 px-3 text-center">{{ rm.nights }} nts</td>
+              <td class="py-2.5 px-3 text-right font-mono">{{ rm.rate_per_night?.toLocaleString() }}</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold">{{ rm.subtotal_etb?.toLocaleString() }}</td>
+            </tr>
+            <tr v-if="(!invoiceData?.room_items || invoiceData.room_items.length === 0) && invoiceData?.room">
+              <td class="py-2.5 px-3 font-semibold text-slate-800">
+                🏨 Accommodation: {{ invoiceData?.room?.title || ('Room ' + invoiceData?.room?.room_number) }}
+              </td>
+              <td class="py-2.5 px-3 text-center">{{ invoiceData?.room?.nights }} nts</td>
+              <td class="py-2.5 px-3 text-right font-mono">{{ invoiceData?.room?.rate_per_night?.toLocaleString() }}</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold">{{ (invoiceData?.breakdown?.room_charge || invoiceData?.room?.total)?.toLocaleString() }}</td>
+            </tr>
+            <!-- Incidental Service Charges (Mini-bar, Restaurant, Laundry, etc.) -->
+            <tr v-for="(sc, sidx) in (invoiceData?.service_items || [])" :key="'sc-'+sidx" class="bg-amber-50/40">
+              <td class="py-2 px-3 font-medium text-slate-800">
+                <span class="text-[9px] uppercase font-bold text-amber-800 mr-1.5 px-1.5 py-0.5 bg-amber-100 rounded border border-amber-200">{{ sc.type }}</span>
+                {{ sc.description }}
+              </td>
+              <td class="py-2 px-3 text-center font-mono">{{ sc.quantity || 1 }}</td>
+              <td class="py-2 px-3 text-right font-mono text-slate-400">-</td>
+              <td class="py-2 px-3 text-right font-mono font-bold text-amber-900">{{ sc.amount_etb?.toLocaleString() }}</td>
             </tr>
           </tbody>
         </table>
 
         <!-- Tax & Subtotal Breakdown -->
         <div class="flex justify-end pt-2">
-          <div class="w-72 space-y-1.5 text-xs">
+          <div class="w-80 space-y-1.5 text-xs">
             <div class="flex justify-between text-slate-600">
-              <span>Subtotal:</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.room_charge?.toLocaleString() }} ETB</span>
+              <span>Subtotal (Net Charges):</span>
+              <span class="font-mono">{{ (invoiceData?.breakdown?.room_charge || (invoiceData?.financial?.total_amount_etb ? Math.round(invoiceData.financial.total_amount_etb / 1.27) : 0))?.toLocaleString() }} ETB</span>
             </div>
             <div class="flex justify-between text-slate-600">
               <span>VAT (15%):</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.vat_15?.toLocaleString() }} ETB</span>
+              <span class="font-mono">{{ (invoiceData?.taxes?.vat_15 || invoiceData?.breakdown?.vat_15 || 0)?.toLocaleString() }} ETB</span>
             </div>
             <div class="flex justify-between text-slate-600">
               <span>Service Charge (10%):</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.service_charge_10?.toLocaleString() }} ETB</span>
+              <span class="font-mono">{{ (invoiceData?.taxes?.service_charge_10 || invoiceData?.breakdown?.service_charge_10 || 0)?.toLocaleString() }} ETB</span>
             </div>
             <div class="flex justify-between text-slate-600">
               <span>Tourism Development Levy (2%):</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.tourism_levy_2?.toLocaleString() }} ETB</span>
+              <span class="font-mono">{{ (invoiceData?.taxes?.tourism_levy_2 || invoiceData?.breakdown?.tourism_levy_2 || 0)?.toLocaleString() }} ETB</span>
             </div>
             <div class="flex justify-between text-base font-black text-[#0B4D34] pt-2 border-t-2 border-[#0B4D34]">
-              <span>Grand Total:</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.total_etb?.toLocaleString() }} ETB</span>
+              <span>Grand Total Settled:</span>
+              <span class="font-mono">{{ (invoiceData?.financial?.total_amount_etb || invoiceData?.breakdown?.total_etb || 0)?.toLocaleString() }} ETB</span>
             </div>
             <div class="flex justify-between text-xs text-slate-500 font-semibold">
               <span>Total Paid:</span>
-              <span class="font-mono text-emerald-700">{{ invoiceData?.breakdown?.total_paid?.toLocaleString() }} ETB</span>
+              <span class="font-mono text-emerald-700">{{ (invoiceData?.financial?.amount_paid_etb !== undefined ? invoiceData.financial.amount_paid_etb : invoiceData?.breakdown?.total_paid || 0)?.toLocaleString() }} ETB</span>
             </div>
-            <div class="flex justify-between text-xs font-bold" :class="invoiceData?.breakdown?.outstanding_balance === 0 ? 'text-emerald-700' : 'text-rose-700'">
+            <div class="flex justify-between text-xs font-bold" :class="((invoiceData?.financial?.outstanding_balance_etb ?? invoiceData?.breakdown?.outstanding_balance) === 0) ? 'text-emerald-700' : 'text-rose-700'">
               <span>Balance Due:</span>
-              <span class="font-mono">{{ invoiceData?.breakdown?.outstanding_balance?.toLocaleString() }} ETB</span>
+              <span class="font-mono">{{ ((invoiceData?.financial?.outstanding_balance_etb !== undefined ? invoiceData.financial.outstanding_balance_etb : invoiceData?.breakdown?.outstanding_balance) || 0)?.toLocaleString() }} ETB</span>
             </div>
           </div>
         </div>
