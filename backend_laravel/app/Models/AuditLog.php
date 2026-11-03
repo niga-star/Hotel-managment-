@@ -28,4 +28,14 @@ class AuditLog extends Model
         'details' => 'array',
         'created_at' => 'datetime',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class, 'resource_id');
+    }
 }

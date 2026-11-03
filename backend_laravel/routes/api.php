@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\HousekeepingController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\GuestController;
 
 Route::prefix('v1')->group(function () {
 
@@ -23,7 +24,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
 
     // --- Rooms & Categories ---
+    Route::get('/amenities', [RoomController::class, 'amenities']);
     Route::get('/categories', [RoomController::class, 'categories']);
+    Route::post('/categories', [RoomController::class, 'storeCategory']);
+    Route::put('/categories/{id}', [RoomController::class, 'updateCategory']);
+    Route::delete('/categories/{id}', [RoomController::class, 'destroyCategory']);
     Route::get('/rooms/categories', [RoomController::class, 'categories']);
     Route::get('/rooms/floor-map', [RoomController::class, 'floorMap']);
     Route::get('/rooms/{id}/booked-dates', [RoomController::class, 'bookedDates']);
@@ -33,6 +38,7 @@ Route::prefix('v1')->group(function () {
     Route::put('/rooms/{id}', [RoomController::class, 'update']);
     Route::delete('/rooms/{id}', [RoomController::class, 'destroy']);
     Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
+    Route::patch('/rooms/{id}/toggle-active', [RoomController::class, 'toggleActive']);
 
     // --- Guest Favorites ---
     Route::get('/favorites', [RoomController::class, 'getFavorites']);
@@ -41,6 +47,7 @@ Route::prefix('v1')->group(function () {
     Route::delete('/favorites/{roomId}', [RoomController::class, 'removeFavorite']);
 
     // --- Bookings & PMS Lifecycle ---
+    Route::get('/rooms/search-availability', [BookingController::class, 'searchAvailability']);
     Route::post('/bookings/validate-promo', [BookingController::class, 'validatePromo']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings', [BookingController::class, 'desk']);
@@ -49,10 +56,34 @@ Route::prefix('v1')->group(function () {
     Route::get('/bookings/desk', [BookingController::class, 'desk']);
     Route::get('/bookings/check-in-eligible', [BookingController::class, 'checkInEligible']);
     Route::get('/bookings/check-out-eligible', [BookingController::class, 'checkOutEligible']);
+    Route::get('/desk/checkin-dashboard', [BookingController::class, 'checkInDashboard']);
+    Route::get('/desk/operations-history', [BookingController::class, 'operationsHistory']);
+    Route::post('/desk/walk-in-checkin', [BookingController::class, 'walkInCheckIn']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
+    Route::put('/bookings/{id}', [BookingController::class, 'update']);
+    Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    Route::post('/bookings/{id}/no-show', [BookingController::class, 'markNoShow']);
+    Route::get('/bookings/{id}/confirmation', [BookingController::class, 'confirmation']);
     Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn']);
     Route::post('/bookings/{id}/check-out', [BookingController::class, 'checkOut']);
+    Route::post('/bookings/{id}/reassign-room', [BookingController::class, 'reassignRoom']);
+    Route::post('/bookings/{id}/service-charges', [BookingController::class, 'addServiceCharge']);
+    Route::get('/bookings/{id}/service-charges', [BookingController::class, 'getServiceCharges']);
+    Route::post('/bookings/{id}/settle-payment', [BookingController::class, 'settlePayment']);
+    Route::post('/bookings/{id}/early-checkin', [BookingController::class, 'approveEarlyCheckIn']);
+    Route::post('/bookings/{id}/late-checkout', [BookingController::class, 'approveLateCheckOut']);
     Route::get('/bookings/{id}/invoice', [BookingController::class, 'generateInvoice']);
+
+    // --- Guest Directory & Profiles ---
+    Route::get('/guests/dashboard-stats', [GuestController::class, 'dashboardStats']);
+    Route::get('/guests/check-duplicate', [GuestController::class, 'checkDuplicate']);
+    Route::get('/guests', [GuestController::class, 'index']);
+    Route::post('/guests', [GuestController::class, 'store']);
+    Route::get('/guests/{id}', [GuestController::class, 'show']);
+    Route::put('/guests/{id}', [GuestController::class, 'update']);
+    Route::delete('/guests/{id}', [GuestController::class, 'destroy']);
+    Route::patch('/guests/{id}/toggle-active', [GuestController::class, 'toggleActive']);
+    Route::get('/guests/{id}/bookings', [BookingController::class, 'guestBookings']);
 
     // --- Admin Front Desk Shortcuts ---
     Route::get('/admin/bookings/desk', [BookingController::class, 'desk']);
