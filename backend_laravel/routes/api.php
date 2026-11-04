@@ -99,6 +99,9 @@ Route::prefix('v1')->group(function () {
     // --- Payments & Financial Transactions ---
     Route::get('/payments', [PaymentController::class, 'index']);
     Route::post('/payments/record', [PaymentController::class, 'recordPayment']);
+    Route::get('/payments/receipts', [PaymentController::class, 'listReceipts']);
+    Route::get('/receipts', [PaymentController::class, 'listReceipts']);
+    Route::get('/payments/{id}/receipt', [PaymentController::class, 'getReceipt']);
     Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);
     Route::get('/billing/folio/{bookingId}', [PaymentController::class, 'getGuestFolio']);
     Route::post('/billing/folio/{bookingId}/charges', [BookingController::class, 'addServiceCharge']);

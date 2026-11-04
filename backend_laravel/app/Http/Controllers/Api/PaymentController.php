@@ -869,6 +869,130 @@ class PaymentController extends Controller
     }
 
     /**
+     * Get official payment transaction receipt.
+     */
+    public function getReceipt($id)
+    {
+        $payment = Payment::with([
+            'booking.guest',
+            'booking.room.category',
+            'booking.bookingRooms.room.category',
+            'processedBy',
+            'refunds',
+        ])
+        ->where('id', $id)
+        ->orWhere('receipt_number', $id)
+        ->orWhere('transaction_id', $id)
+        ->firstOrFail();
+
+        $booking = $payment->booking;
+        $d1 = $booking ? Carbon::parse($booking->check_in_date) : now();
+        $d2 = $booking ? Carbon::parse($booking->check_out_date) : now()->addDay();
+        $nights = max(1, $d1->diffInDays($d2));
+
+        $grossTotal = $booking ? (float)$booking->gross_total_etb : (float)$payment->amount_etb;
+        $totalPaid = $booking ? (float)$booking->payments
+            ->filter(fn($p) => in_array($p->status, ['verified', 'completed']))
+            ->sum(fn($p) => max(0, (float)$p->amount_etb - (float)($p->refunded_amount_etb ?? 0))) : (float)$payment->amount_etb;
+        $remainingBalance = max(0, $grossTotal - $totalPaid);
+
+        $roomNumber = 'N/A';
+        $roomType = 'Standard';
+        if ($booking) {
+            if ($booking->bookingRooms && $booking->bookingRooms->isNotEmpty()) {
+                $roomNumber = $booking->bookingRooms->pluck('room_number')->filter()->implode(', ');
+                $roomType = $booking->bookingRooms->first()->room?->category?->name ?: 'Deluxe Room';
+            } elseif ($booking->room) {
+                $roomNumber = $booking->room->room_number;
+                $roomType = $booking->room->category?->name ?: 'Deluxe Room';
+            }
+        }
+
+        $receipt = [
+            'receipt_number' => $payment->receipt_number ?: ('RCP-' . date('Y') . '-' . substr($payment->id, -5)),
+            'transaction_id' => $payment->transaction_id,
+            'issue_date' => ($payment->paid_at ?? $payment->created_at ?? now())->format('Y-m-d H:i:s'),
+            'payment_date' => ($payment->paid_at ?? $payment->created_at ?? now())->toFormattedDateString(),
+            'hotel' => [
+                'name' => 'Ethiopian Luxury Resort & Heritage Suites',
+                'address' => 'Bole Medhanealem Avenue, Addis Ababa, Ethiopia',
+                'phone' => '+251 11 662 0000',
+                'tin' => '0048921849',
+                'vat_reg' => '991823901',
+            ],
+            'guest' => [
+                'id' => $booking?->guest?->id,
+                'name' => $booking?->guest?->full_name ?: 'Valued Guest',
+                'phone' => $booking?->guest?->phone ?: 'N/A',
+                'email' => $booking?->guest?->email ?: 'N/A',
+            ],
+            'stay' => [
+                'booking_id' => $booking?->id,
+                'reference_code' => $booking?->reference_code ?: 'N/A',
+                'room_number' => $roomNumber,
+                'room_type' => $roomType,
+                'check_in_date' => $booking?->check_in_date,
+                'check_out_date' => $booking?->check_out_date,
+                'nights' => $nights,
+            ],
+            'payment' => [
+                'payment_id' => $payment->id,
+                'payment_method' => ucfirst(str_replace('_', ' ', $payment->payment_method)),
+                'amount_etb' => (float)$payment->amount_etb,
+                'amount_usd' => (float)$payment->amount_usd,
+                'is_advance_deposit' => (bool)$payment->is_advance_deposit,
+                'payment_type' => $payment->is_advance_deposit ? 'Advance Deposit' : 'Stay Payment',
+                'status' => $payment->status,
+                'refunded_amount_etb' => (float)($payment->refunded_amount_etb ?? 0),
+                'refundable_amount_etb' => (float)$payment->refundable_amount_etb,
+                'notes' => $payment->notes,
+            ],
+            'balance_summary' => [
+                'stay_gross_total_etb' => $grossTotal,
+                'total_verified_paid_etb' => $totalPaid,
+                'remaining_balance_after_payment_etb' => $remainingBalance,
+                'is_fully_settled' => ($remainingBalance <= 0),
+            ],
+            'cashier' => [
+                'id' => $payment->processed_by ?: $payment->reviewed_by ?: 'usr-frontdesk-1',
+                'name' => $payment->processedBy?->full_name ?: 'Front Desk Reception',
+            ],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'receipt' => $receipt,
+        ]);
+    }
+
+    /**
+     * List all official payment transaction receipts.
+     */
+    public function listReceipts(Request $request)
+    {
+        $search = $request->input('search');
+        $query = Payment::with(['booking.guest', 'booking.room'])
+            ->whereIn('status', ['verified', 'completed']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('receipt_number', 'like', "%{$search}%")
+                  ->orWhere('transaction_id', 'like', "%{$search}%")
+                  ->orWhereHas('booking', function ($bq) use ($search) {
+                      $bq->where('reference_code', 'like', "%{$search}%")
+                         ->orWhereHas('guest', function ($gq) use ($search) {
+                             $gq->where('full_name', 'like', "%{$search}%");
+                         });
+                  });
+            });
+        }
+
+        $receipts = $query->orderBy('paid_at', 'desc')->paginate(20);
+
+        return response()->json($receipts);
+    }
+
+    /**
      * Prevent hard deletion of completed financial transactions.
      */
     public function destroy($id)
