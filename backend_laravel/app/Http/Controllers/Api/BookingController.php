@@ -581,7 +581,7 @@ class BookingController extends Controller
 
             // 7. Audit Log
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'usr-staff-1',
                 'user_name' => $request->user()?->full_name ?: 'Reservation Desk Staff',
                 'user_role' => $request->user()?->role ?: 'receptionist',
@@ -929,7 +929,7 @@ class BookingController extends Controller
 
             // Audit Log
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'usr-staff-1',
                 'user_name' => $request->user()?->full_name ?: 'Reservation Desk Staff',
                 'user_role' => $request->user()?->role ?: 'staff',
@@ -1026,7 +1026,7 @@ class BookingController extends Controller
 
             // Audit Log
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'usr-staff-1',
                 'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
                 'user_role' => $request->user()?->role ?: 'staff',
@@ -1084,7 +1084,7 @@ class BookingController extends Controller
             }
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'usr-staff-1',
                 'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
                 'user_role' => $request->user()?->role ?: 'receptionist',
@@ -1471,7 +1471,7 @@ class BookingController extends Controller
         BookingRoom::where('booking_id', $booking->id)->update(['status' => 'checked_in']);
 
         AuditLog::create([
-            'id' => 'aud-' . time() . '-' . rand(100, 999),
+            'id' => 'aud-' . time() . '-' . uniqid(),
             'user_id' => $request->user()?->id ?: 'staff',
             'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
             'user_role' => $request->user()?->role ?: 'receptionist',
@@ -1636,7 +1636,7 @@ class BookingController extends Controller
             }
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'staff',
                 'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
                 'user_role' => $request->user()?->role ?: 'receptionist',
@@ -1790,7 +1790,7 @@ class BookingController extends Controller
             }
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $request->user()?->id ?: 'staff',
                 'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
                 'user_role' => $request->user()?->role ?: 'receptionist',
@@ -1863,7 +1863,7 @@ class BookingController extends Controller
 
         // Log incidental charge in audit trail
         AuditLog::create([
-            'id' => 'aud-' . time() . '-' . rand(100, 999),
+            'id' => 'aud-' . time() . '-' . uniqid(),
             'user_id' => $request->user()?->id ?: 'staff',
             'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
             'user_role' => $request->user()?->role ?: 'receptionist',
@@ -1936,7 +1936,7 @@ class BookingController extends Controller
         }
 
         AuditLog::create([
-            'id' => 'aud-' . time() . '-' . rand(100, 999),
+            'id' => 'aud-' . time() . '-' . uniqid(),
             'user_id' => $request->user()?->id ?: 'staff',
             'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
             'user_role' => $request->user()?->role ?: 'cashier',
@@ -2167,7 +2167,7 @@ class BookingController extends Controller
         BookingRoom::where('booking_id', $booking->id)->update(['status' => 'checked_out']);
 
         AuditLog::create([
-            'id' => 'aud-' . time() . '-' . rand(100, 999),
+            'id' => 'aud-' . time() . '-' . uniqid(),
             'user_id' => $request->user()?->id ?: 'staff',
             'user_name' => $request->user()?->full_name ?: 'Front Desk Staff',
             'user_role' => $request->user()?->role ?: 'receptionist',

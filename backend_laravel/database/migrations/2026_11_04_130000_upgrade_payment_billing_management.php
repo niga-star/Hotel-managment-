@@ -93,6 +93,10 @@ return new class extends Migration
                 }
             });
         }
+
+        // 5. Expand bookings payment_status enum and payments payment_method column
+        DB::statement("ALTER TABLE payments MODIFY COLUMN payment_method VARCHAR(64) NOT NULL DEFAULT 'cash'");
+        DB::statement("ALTER TABLE bookings MODIFY COLUMN payment_status ENUM('pending','pending_verification','paid','rejected','refunded','unpaid','partially_paid') NOT NULL DEFAULT 'pending'");
     }
 
     /**

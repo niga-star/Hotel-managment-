@@ -290,7 +290,7 @@ class PaymentController extends Controller
                 }
 
                 AuditLog::create([
-                    'id' => 'aud-' . time() . '-' . rand(100, 999),
+                    'id' => 'aud-' . time() . '-' . uniqid(),
                     'user_id' => $reviewerId,
                     'user_name' => $request->user()?->full_name ?: 'System Admin',
                     'user_role' => $request->user()?->role ?: 'admin',
@@ -334,7 +334,7 @@ class PaymentController extends Controller
                 }
 
                 AuditLog::create([
-                    'id' => 'aud-' . time() . '-' . rand(100, 999),
+                    'id' => 'aud-' . time() . '-' . uniqid(),
                     'user_id' => $reviewerId,
                     'user_name' => $request->user()?->full_name ?: 'System Admin',
                     'user_role' => $request->user()?->role ?: 'admin',
@@ -417,7 +417,7 @@ class PaymentController extends Controller
             }
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => 'system-webhook',
                 'user_name' => 'Automated Payment Webhook',
                 'user_role' => 'system',
@@ -594,7 +594,7 @@ class PaymentController extends Controller
             $staffName = $request->user()?->full_name ?: 'Front Desk Reception';
             $staffRole = $request->user()?->role ?: 'receptionist';
 
-            $txId = $validated['transaction_reference'] ?: ('TX-' . date('Ymd') . '-' . rand(10000, 99999));
+            $txId = !empty($validated['transaction_reference']) ? $validated['transaction_reference'] : ('TX-' . date('Ymd') . '-' . rand(10000, 99999));
 
             $payment = Payment::create([
                 'id' => 'pay-' . time() . '-' . rand(100, 999),
@@ -632,7 +632,7 @@ class PaymentController extends Controller
             $booking->update($updateData);
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $staffId,
                 'user_name' => $staffName,
                 'user_role' => $staffRole,
@@ -1093,7 +1093,7 @@ class PaymentController extends Controller
             }
 
             AuditLog::create([
-                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'id' => 'aud-' . time() . '-' . uniqid(),
                 'user_id' => $staffId,
                 'user_name' => $staffName,
                 'user_role' => $staffRole,
