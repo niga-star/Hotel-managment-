@@ -1144,6 +1144,49 @@ class PaymentController extends Controller
     }
 
     /**
+     * List all persistent tax invoices.
+     */
+    public function listInvoices(Request $request)
+    {
+        $query = Invoice::with(['booking.guest', 'booking.room'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->input('status') && $request->input('status') !== 'all') {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($request->input('search')) {
+            $s = $request->input('search');
+            $query->where(function ($q) use ($s) {
+                $q->where('invoice_number', 'like', "%{$s}%")
+                  ->orWhereHas('booking', fn($bq) => $bq->where('reference_code', 'like', "%{$s}%")->orWhereHas('guest', fn($gq) => $gq->where('full_name', 'like', "%{$s}%")));
+            });
+        }
+
+        return response()->json($query->paginate(20));
+    }
+
+    /**
+     * Retrieve single invoice record.
+     */
+    public function showInvoice($id)
+    {
+        $invoice = Invoice::with([
+            'booking.guest',
+            'booking.room.category',
+            'booking.bookingRooms.room.category',
+            'booking.payments',
+            'booking.serviceCharges'
+        ])
+        ->where('id', $id)
+        ->orWhere('invoice_number', $id)
+        ->orWhere('booking_id', $id)
+        ->firstOrFail();
+
+        return response()->json(['invoice' => $invoice]);
+    }
+
+    /**
      * Prevent hard deletion of completed financial transactions.
      */
     public function destroy($id)

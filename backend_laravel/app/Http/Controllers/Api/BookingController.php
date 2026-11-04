@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Models\BookingServiceCharge;
 use App\Models\AuditLog;
+use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -2268,8 +2269,43 @@ class BookingController extends Controller
         $taxService = round($totalPrice * 0.10, 2);
         $taxTourism = round($totalPrice * 0.02, 2);
 
+        // Persistent Unique Invoice Record (Guarantees zero duplicate invoices on refresh)
+        $invRecord = Invoice::where('booking_id', $booking->id)->first();
+        $invNumber = $invRecord ? $invRecord->invoice_number : ('INV-ETH-' . date('Y') . '-' . preg_replace('/[^A-Za-z0-9]/', '', $booking->reference_code));
+
+        if (!$invRecord) {
+            $invRecord = Invoice::create([
+                'id' => 'inv-' . time() . '-' . rand(100, 999),
+                'invoice_number' => $invNumber,
+                'booking_id' => $booking->id,
+                'guest_id' => $booking->guest_id,
+                'issue_date' => now()->toDateString(),
+                'due_date' => $booking->check_out_date,
+                'subtotal_etb' => $totalPrice,
+                'tax_vat_etb' => $taxVat,
+                'tax_service_etb' => $taxService,
+                'tax_tourism_etb' => $taxTourism,
+                'total_amount_etb' => $totalPrice,
+                'paid_amount_etb' => $totalPaid,
+                'balance_due_etb' => $outstanding,
+                'status' => ($outstanding <= 0 ? 'paid' : ($totalPaid > 0 ? 'partially_paid' : 'unpaid')),
+            ]);
+        } else {
+            $invRecord->update([
+                'subtotal_etb' => $totalPrice,
+                'tax_vat_etb' => $taxVat,
+                'tax_service_etb' => $taxService,
+                'tax_tourism_etb' => $taxTourism,
+                'total_amount_etb' => $totalPrice,
+                'paid_amount_etb' => $totalPaid,
+                'balance_due_etb' => $outstanding,
+                'status' => ($outstanding <= 0 ? 'paid' : ($totalPaid > 0 ? 'partially_paid' : 'unpaid')),
+            ]);
+        }
+
         $invoice = [
-            'invoice_number' => 'INV-ETH-' . date('Y') . '-' . preg_replace('/[^A-Za-z0-9]/', '', $booking->reference_code),
+            'id' => $invRecord->id,
+            'invoice_number' => $invNumber,
             'fiscal_date' => now()->toFormattedDateString(),
             'hotel_name' => 'Ethiopian Luxury Resort & Heritage Suites',
             'hotel_tin' => '0048921849',
