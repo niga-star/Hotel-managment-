@@ -993,6 +993,157 @@ class PaymentController extends Controller
     }
 
     /**
+     * Generate unique sequential refund number.
+     */
+    protected function generateRefundNumber(): string
+    {
+        $year = date('Y');
+        $count = Refund::whereYear('created_at', $year)->count() + 1;
+        $candidate = sprintf("RFD-%s-%05d", $year, $count);
+        while (Refund::where('refund_number', $candidate)->exists()) {
+            $count++;
+            $candidate = sprintf("RFD-%s-%05d", $year, $count);
+        }
+        return $candidate;
+    }
+
+    /**
+     * Process or request a refund against a verified payment.
+     */
+    public function requestRefund(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'amount_etb' => 'required|numeric|min:0.01',
+            'reason' => 'required|string|max:500',
+            'auto_approve' => 'nullable|boolean',
+        ]);
+
+        $amount = (float)$validated['amount_etb'];
+        $reason = trim($validated['reason']);
+        $staffId = $request->user()?->id ?: 'usr-frontdesk-1';
+        $staffName = $request->user()?->full_name ?: 'Front Desk Reception';
+        $staffRole = $request->user()?->role ?: 'manager';
+
+        return DB::transaction(function () use ($id, $amount, $reason, $staffId, $staffName, $staffRole, $request) {
+            $payment = Payment::where('id', $id)
+                ->orWhere('transaction_id', $id)
+                ->orWhere('receipt_number', $id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!in_array($payment->status, ['verified', 'completed', 'partially_refunded'])) {
+                return response()->json([
+                    'error' => "Only verified payments can be refunded. Current payment status is '{$payment->status}'."
+                ], 422);
+            }
+
+            $currentRefunded = (float)($payment->refunded_amount_etb ?? 0);
+            $refundable = max(0, (float)$payment->amount_etb - $currentRefunded);
+
+            if ($amount > $refundable) {
+                return response()->json([
+                    'error' => "Refund amount of ETB {$amount} exceeds remaining refundable balance of ETB {$refundable}."
+                ], 422);
+            }
+
+            $refundNumber = $this->generateRefundNumber();
+            $refund = Refund::create([
+                'id' => 'rfd-' . time() . '-' . rand(100, 999),
+                'refund_number' => $refundNumber,
+                'payment_id' => $payment->id,
+                'booking_id' => $payment->booking_id,
+                'amount_etb' => $amount,
+                'amount_usd' => round($amount / 64, 2),
+                'reason' => $reason,
+                'status' => 'completed',
+                'requested_by' => $staffId,
+                'approved_by' => $staffId,
+                'processed_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $newRefundedTotal = $currentRefunded + $amount;
+            $newRefundStatus = ($newRefundedTotal >= (float)$payment->amount_etb) ? 'refunded' : 'partially_refunded';
+            $paymentUpdates = [
+                'refunded_amount_etb' => $newRefundedTotal,
+                'refund_status' => $newRefundStatus,
+            ];
+            if ($newRefundedTotal >= (float)$payment->amount_etb) {
+                $paymentUpdates['status'] = 'refunded';
+            }
+            $payment->update($paymentUpdates);
+
+            // Re-evaluate booking balance and payment status
+            $booking = Booking::with('payments', 'serviceCharges')->find($payment->booking_id);
+            if ($booking) {
+                $grossTotal = (float)$booking->gross_total_etb;
+                $netVerifiedPaid = (float)$booking->payments
+                    ->filter(fn($p) => in_array($p->status, ['verified', 'completed']))
+                    ->sum(fn($p) => max(0, (float)$p->amount_etb - (float)($p->refunded_amount_etb ?? 0)));
+                $outstanding = max(0, $grossTotal - $netVerifiedPaid);
+
+                $newPaymentStatus = 'unpaid';
+                if ($outstanding <= 0 && $netVerifiedPaid > 0) {
+                    $newPaymentStatus = 'paid';
+                } elseif ($netVerifiedPaid > 0) {
+                    $newPaymentStatus = 'partially_paid';
+                }
+                $booking->update(['payment_status' => $newPaymentStatus]);
+            }
+
+            AuditLog::create([
+                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'user_id' => $staffId,
+                'user_name' => $staffName,
+                'user_role' => $staffRole,
+                'action' => 'refund_processed',
+                'resource_type' => 'payment',
+                'resource_id' => $payment->id,
+                'details' => [
+                    'refund_id' => $refund->id,
+                    'refund_number' => $refundNumber,
+                    'amount_etb' => $amount,
+                    'reason' => $reason,
+                    'booking_id' => $payment->booking_id,
+                    'remaining_refundable_etb' => max(0, $refundable - $amount),
+                ],
+                'ip_address' => $request->ip(),
+                'created_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Refund of ETB {$amount} processed successfully.",
+                'refund' => $refund,
+                'payment' => $payment->fresh(),
+                'remaining_refundable_etb' => max(0, $refundable - $amount),
+                'booking_payment_status' => $booking?->payment_status,
+            ], 200);
+        });
+    }
+
+    /**
+     * List all refunds.
+     */
+    public function listRefunds(Request $request)
+    {
+        $query = Refund::with(['payment', 'booking.guest', 'booking.room'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->input('search')) {
+            $s = $request->input('search');
+            $query->where(function ($q) use ($s) {
+                $q->where('refund_number', 'like', "%{$s}%")
+                  ->orWhere('reason', 'like', "%{$s}%")
+                  ->orWhereHas('payment', fn($pq) => $pq->where('transaction_id', 'like', "%{$s}%")->orWhere('receipt_number', 'like', "%{$s}%"));
+            });
+        }
+
+        return response()->json($query->paginate(20));
+    }
+
+    /**
      * Prevent hard deletion of completed financial transactions.
      */
     public function destroy($id)

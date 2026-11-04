@@ -99,6 +99,8 @@ Route::prefix('v1')->group(function () {
     // --- Payments & Financial Transactions ---
     Route::get('/payments', [PaymentController::class, 'index']);
     Route::post('/payments/record', [PaymentController::class, 'recordPayment']);
+    Route::post('/payments/{id}/refund', [PaymentController::class, 'requestRefund']);
+    Route::get('/refunds', [PaymentController::class, 'listRefunds']);
     Route::get('/payments/receipts', [PaymentController::class, 'listReceipts']);
     Route::get('/receipts', [PaymentController::class, 'listReceipts']);
     Route::get('/payments/{id}/receipt', [PaymentController::class, 'getReceipt']);
