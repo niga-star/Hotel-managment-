@@ -18,6 +18,7 @@ class BookingServiceCharge extends Model
         'booking_id',
         'service_type',
         'description',
+        'reference_code',
         'amount_etb',
         'amount_usd',
         'quantity',

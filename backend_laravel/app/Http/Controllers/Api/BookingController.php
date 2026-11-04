@@ -1824,19 +1824,37 @@ class BookingController extends Controller
             'description' => 'required|string|max:255',
             'amount_etb' => 'required|numeric|min:0.01',
             'quantity' => 'nullable|integer|min:1',
+            'reference_code' => 'nullable|string|max:128',
             'staff_notes' => 'nullable|string',
         ]);
 
         $booking = Booking::where('id', $id)->orWhere('reference_code', $id)->firstOrFail();
+
+        // Prevent duplicate service charge if reference_code is specified
+        if (!empty($validated['reference_code'])) {
+            $existing = BookingServiceCharge::where('booking_id', $booking->id)
+                ->where('reference_code', $validated['reference_code'])
+                ->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Service charge already recorded (prevented duplicate charge).',
+                    'is_duplicate' => true,
+                    'charge' => $existing,
+                ], 200);
+            }
+        }
 
         $charge = BookingServiceCharge::create([
             'id' => 'bsc-' . time() . '-' . rand(100, 999),
             'booking_id' => $booking->id,
             'service_type' => $validated['service_type'],
             'description' => $validated['description'],
+            'reference_code' => $validated['reference_code'] ?? null,
             'amount_etb' => (float)$validated['amount_etb'],
             'amount_usd' => round(((float)$validated['amount_etb']) / 64, 2),
             'quantity' => $validated['quantity'] ?? 1,
+            'added_by' => $request->user()?->id ?: 'staff',
             'posted_by' => $request->user()?->id ?: 'staff',
             'staff_notes' => $validated['staff_notes'] ?? null,
             'charged_at' => now(),

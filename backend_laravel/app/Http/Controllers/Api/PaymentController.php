@@ -666,6 +666,209 @@ class PaymentController extends Controller
     }
 
     /**
+     * Get Comprehensive Guest Folio and Account Statement.
+     */
+    public function getGuestFolio($bookingId)
+    {
+        $booking = Booking::with([
+            'room.category',
+            'bookingRooms.room.category',
+            'guest',
+            'payments.refunds',
+            'serviceCharges',
+        ])
+        ->where('id', $bookingId)
+        ->orWhere('reference_code', $bookingId)
+        ->firstOrFail();
+
+        $d1 = Carbon::parse($booking->check_in_date);
+        $d2 = Carbon::parse($booking->check_out_date);
+        $nights = max(1, $d1->diffInDays($d2));
+
+        // 1. Room Charges Calculation (Preserving agreed reservation rates)
+        $roomItems = collect();
+        if ($booking->bookingRooms && $booking->bookingRooms->isNotEmpty()) {
+            $roomItems = $booking->bookingRooms->map(function ($br) use ($nights) {
+                $rRate = (float)$br->nightly_rate_etb;
+                $subtotal = (float)($br->total_price_etb ?: ($rRate * $nights));
+                return [
+                    'id' => $br->id,
+                    'type' => 'room_charge',
+                    'room_number' => $br->room_number ?: ($br->room?->room_number ?? 'N/A'),
+                    'category' => $br->room?->category?->name ?: 'Deluxe Room',
+                    'nights' => $nights,
+                    'rate_per_night' => $rRate,
+                    'amount_etb' => $subtotal,
+                    'description' => "Room {$br->room_number} (" . ($br->room?->category?->name ?: 'Standard') . ") - {$nights} nights",
+                    'date' => $br->created_at ? $br->created_at->format('Y-m-d H:i') : null,
+                ];
+            });
+        } elseif ($booking->room) {
+            $rRate = (float)($booking->nightly_rate_etb ?: $booking->room->price_etb);
+            $subtotal = (float)($booking->total_price_etb ?: ($rRate * $nights));
+            $roomItems = collect([[
+                'id' => $booking->room->id,
+                'type' => 'room_charge',
+                'room_number' => $booking->room->room_number,
+                'category' => $booking->room->category?->name ?: 'Deluxe Room',
+                'nights' => $nights,
+                'rate_per_night' => $rRate,
+                'amount_etb' => $subtotal,
+                'description' => "Room {$booking->room->room_number} (" . ($booking->room->category?->name ?: 'Standard') . ") - {$nights} nights",
+                'date' => $booking->created_at ? $booking->created_at->format('Y-m-d H:i') : null,
+            ]]);
+        } else {
+            $subtotal = (float)$booking->total_price_etb;
+            $roomItems = collect([[
+                'id' => 'room-def',
+                'type' => 'room_charge',
+                'room_number' => 'Assigned',
+                'category' => 'Hotel Room',
+                'nights' => $nights,
+                'rate_per_night' => round($subtotal / $nights, 2),
+                'amount_etb' => $subtotal,
+                'description' => "Accommodation ({$nights} nights)",
+                'date' => $booking->created_at ? $booking->created_at->format('Y-m-d H:i') : null,
+            ]]);
+        }
+        $totalRoomCharges = (float)$roomItems->sum('amount_etb');
+
+        // 2. Incidental Service Charges
+        $serviceItems = $booking->serviceCharges->map(function ($sc) {
+            return [
+                'id' => $sc->id,
+                'type' => 'service_charge',
+                'service_type' => $sc->service_type,
+                'description' => $sc->description,
+                'reference_code' => $sc->reference_code,
+                'quantity' => $sc->quantity,
+                'amount_etb' => (float)$sc->amount_etb,
+                'amount_usd' => (float)$sc->amount_usd,
+                'posted_by' => $sc->posted_by ?? $sc->added_by,
+                'date' => $sc->created_at ? $sc->created_at->format('Y-m-d H:i') : null,
+            ];
+        });
+        $totalServiceCharges = (float)$serviceItems->sum('amount_etb');
+
+        // Early/Late Fees
+        $earlyLateFees = (float)($booking->early_check_in_fee_etb ?? 0) + (float)($booking->late_check_out_fee_etb ?? 0);
+
+        // Gross Stay Total
+        $grossTotal = $totalRoomCharges + $totalServiceCharges + $earlyLateFees;
+
+        // Fiscal Hospitality Taxes
+        $taxVat = round($grossTotal * 0.15, 2);
+        $taxService = round($grossTotal * 0.10, 2);
+        $taxTourism = round($grossTotal * 0.02, 2);
+        $totalTaxes = $taxVat + $taxService + $taxTourism;
+
+        // 3. Payment Ledger
+        $verifiedPayments = $booking->payments->filter(fn($p) => in_array($p->status, ['verified', 'completed']))->values();
+        $pendingPayments = $booking->payments->filter(fn($p) => !in_array($p->status, ['verified', 'completed']))->values();
+
+        $depositsTotal = (float)$verifiedPayments->where('is_advance_deposit', true)->sum('amount_etb');
+        $regularPaymentsTotal = (float)$verifiedPayments->where('is_advance_deposit', false)->sum('amount_etb');
+        $totalVerifiedGrossPaid = (float)$verifiedPayments->sum('amount_etb');
+
+        $totalRefunds = (float)$verifiedPayments->sum('refunded_amount_etb');
+        $netVerifiedPaid = max(0, $totalVerifiedGrossPaid - $totalRefunds);
+
+        // Outstanding Balance (Pending payments DO NOT reduce balance)
+        $outstandingBalance = max(0, $grossTotal - $netVerifiedPaid);
+
+        $paymentStatus = 'unpaid';
+        if ($outstandingBalance <= 0 && $netVerifiedPaid > 0) {
+            $paymentStatus = 'paid';
+        } elseif ($netVerifiedPaid > 0) {
+            $paymentStatus = 'partially_paid';
+        }
+
+        // Chronological Statement Ledger
+        $ledger = collect();
+        foreach ($roomItems as $ri) {
+            $ledger->push([
+                'category' => 'Charge',
+                'description' => $ri['description'],
+                'amount_etb' => $ri['amount_etb'],
+                'type' => 'debit',
+                'date' => $booking->check_in_date,
+            ]);
+        }
+        foreach ($serviceItems as $si) {
+            $ledger->push([
+                'category' => 'Service Incidental',
+                'description' => "{$si['service_type']}: {$si['description']} (x{$si['quantity']})",
+                'amount_etb' => $si['amount_etb'],
+                'type' => 'debit',
+                'date' => $si['date'] ?: $booking->check_in_date,
+            ]);
+        }
+        foreach ($verifiedPayments as $vp) {
+            $prefix = $vp->is_advance_deposit ? '[Advance Deposit]' : '[Payment]';
+            $ledger->push([
+                'category' => 'Payment',
+                'description' => "{$prefix} {$vp->payment_method} Ref: {$vp->transaction_id} (Rcpt: {$vp->receipt_number})",
+                'amount_etb' => (float)$vp->amount_etb,
+                'type' => 'credit',
+                'date' => $vp->paid_at ? $vp->paid_at->format('Y-m-d H:i') : ($vp->created_at ? $vp->created_at->format('Y-m-d H:i') : null),
+            ]);
+            if ((float)$vp->refunded_amount_etb > 0) {
+                $ledger->push([
+                    'category' => 'Refund',
+                    'description' => "[Refund] On {$vp->transaction_id} (Rcpt: {$vp->receipt_number})",
+                    'amount_etb' => (float)$vp->refunded_amount_etb,
+                    'type' => 'debit',
+                    'date' => $vp->updated_at ? $vp->updated_at->format('Y-m-d H:i') : null,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'folio' => [
+                'booking_id' => $booking->id,
+                'reference_code' => $booking->reference_code,
+                'guest' => [
+                    'id' => $booking->guest?->id,
+                    'name' => $booking->guest?->full_name ?: 'Valued Guest',
+                    'email' => $booking->guest?->email,
+                    'phone' => $booking->guest?->phone,
+                    'identification_number' => $booking->guest?->masked_id_number,
+                ],
+                'stay' => [
+                    'check_in' => $booking->check_in_date,
+                    'check_out' => $booking->check_out_date,
+                    'nights' => $nights,
+                    'rooms_count' => $booking->rooms_count ?: $roomItems->count(),
+                ],
+                'room_charges' => $roomItems,
+                'total_room_charges_etb' => $totalRoomCharges,
+                'service_charges' => $serviceItems,
+                'total_service_charges_etb' => $totalServiceCharges,
+                'early_late_fees_etb' => $earlyLateFees,
+                'gross_total_etb' => $grossTotal,
+                'taxes' => [
+                    'vat_15_percent' => $taxVat,
+                    'service_charge_10_percent' => $taxService,
+                    'tourism_levy_2_percent' => $taxTourism,
+                    'total_taxes' => $totalTaxes,
+                ],
+                'verified_payments' => $verifiedPayments,
+                'pending_payments' => $pendingPayments,
+                'deposits_total_etb' => $depositsTotal,
+                'regular_payments_total_etb' => $regularPaymentsTotal,
+                'total_verified_paid_etb' => $totalVerifiedGrossPaid,
+                'total_refunded_etb' => $totalRefunds,
+                'net_paid_etb' => $netVerifiedPaid,
+                'outstanding_balance_etb' => $outstandingBalance,
+                'payment_status' => $paymentStatus,
+                'ledger' => $ledger,
+            ],
+            'balance_due_etb' => $outstandingBalance,
+            'payment_status' => $paymentStatus,
+        ]);
+    }
+
+    /**
      * Prevent hard deletion of completed financial transactions.
      */
     public function destroy($id)
