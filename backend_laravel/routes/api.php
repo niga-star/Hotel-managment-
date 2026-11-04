@@ -98,6 +98,8 @@ Route::prefix('v1')->group(function () {
 
     // --- Payments & Financial Transactions ---
     Route::get('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments/record', [PaymentController::class, 'recordPayment']);
+    Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);
     Route::post('/payments/initialize', [PaymentController::class, 'initializeGateway']);
     Route::post('/payments/upload-receipt', [PaymentController::class, 'uploadReceipt']);
     Route::patch('/payments/{id}/review', [PaymentController::class, 'review']);

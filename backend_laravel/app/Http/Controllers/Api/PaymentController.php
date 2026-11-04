@@ -7,6 +7,10 @@ use App\Models\Payment;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\AuditLog;
+use App\Models\User;
+use App\Models\Refund;
+use App\Models\Invoice;
+use App\Models\BookingServiceCharge;
 use App\Services\ChapaGatewayService;
 use App\Services\TelebirrGatewayService;
 use Illuminate\Http\Request;
@@ -524,5 +528,150 @@ class PaymentController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Generate unique sequential payment receipt number.
+     */
+    protected function generateReceiptNumber(): string
+    {
+        $year = date('Y');
+        $count = Payment::whereNotNull('receipt_number')
+            ->where('receipt_number', 'like', "RCP-{$year}-%")
+            ->count() + 1;
+        $candidate = sprintf("RCP-%s-%05d", $year, $count);
+        while (Payment::where('receipt_number', $candidate)->exists()) {
+            $count++;
+            $candidate = sprintf("RCP-%s-%05d", $year, $count);
+        }
+        return $candidate;
+    }
+
+    /**
+     * Record a new front-desk payment (Cash, Card, Bank Transfer, Telebirr, CBE Birr).
+     */
+    public function recordPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|string',
+            'amount_etb' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string|in:cash,bank_transfer,telebirr,cbe_birr,chapa,card,credit_card,debit_card,other',
+            'transaction_reference' => 'nullable|string',
+            'is_advance_deposit' => 'nullable|boolean',
+            'idempotency_key' => 'nullable|string|max:128',
+            'notes' => 'nullable|string',
+            'receipt_number' => 'nullable|string',
+        ]);
+
+        $idempotencyKey = $validated['idempotency_key'] ?? null;
+        if ($idempotencyKey) {
+            $existing = Payment::with(['booking.guest', 'booking.room'])
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Payment already recorded (idempotent submission).',
+                    'is_duplicate' => true,
+                    'payment' => $existing,
+                    'receipt_number' => $existing->receipt_number,
+                    'outstanding_balance_etb' => $existing->booking?->outstanding_balance_etb ?? 0,
+                ], 200);
+            }
+        }
+
+        return DB::transaction(function () use ($validated, $request, $idempotencyKey) {
+            $booking = Booking::with(['guest', 'room', 'payments', 'serviceCharges'])
+                ->where('id', $validated['booking_id'])
+                ->orWhere('reference_code', $validated['booking_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $amountEtb = (float)$validated['amount_etb'];
+            $amountUsd = round($amountEtb / 64, 2);
+            $receiptNumber = $validated['receipt_number'] ?? $this->generateReceiptNumber();
+            $staffId = $request->user()?->id ?: 'usr-frontdesk-1';
+            $staffName = $request->user()?->full_name ?: 'Front Desk Reception';
+            $staffRole = $request->user()?->role ?: 'receptionist';
+
+            $txId = $validated['transaction_reference'] ?: ('TX-' . date('Ymd') . '-' . rand(10000, 99999));
+
+            $payment = Payment::create([
+                'id' => 'pay-' . time() . '-' . rand(100, 999),
+                'transaction_id' => $txId,
+                'receipt_number' => $receiptNumber,
+                'booking_id' => $booking->id,
+                'payment_method' => $validated['payment_method'],
+                'is_advance_deposit' => (bool)($validated['is_advance_deposit'] ?? false),
+                'amount_etb' => $amountEtb,
+                'amount_usd' => $amountUsd,
+                'status' => 'verified',
+                'paid_at' => now(),
+                'processed_by' => $staffId,
+                'reviewed_by' => $staffId,
+                'reviewed_at' => now(),
+                'idempotency_key' => $idempotencyKey,
+                'notes' => $validated['notes'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Refresh booking payments and recalculate balance
+            $booking->load('payments', 'serviceCharges');
+            $grossTotal = (float)$booking->gross_total_etb;
+            $verifiedPaid = (float)$booking->payments
+                ->filter(fn($p) => in_array($p->status, ['verified', 'completed']))
+                ->sum(fn($p) => max(0, (float)$p->amount_etb - (float)($p->refunded_amount_etb ?? 0)));
+            $outstanding = max(0, $grossTotal - $verifiedPaid);
+
+            $newPaymentStatus = ($outstanding <= 0) ? 'paid' : 'partially_paid';
+            $updateData = ['payment_status' => $newPaymentStatus];
+            if ($booking->booking_status === 'pending_verification') {
+                $updateData['booking_status'] = 'confirmed';
+            }
+            $booking->update($updateData);
+
+            AuditLog::create([
+                'id' => 'aud-' . time() . '-' . rand(100, 999),
+                'user_id' => $staffId,
+                'user_name' => $staffName,
+                'user_role' => $staffRole,
+                'action' => 'payment_recorded',
+                'resource_type' => 'payment',
+                'resource_id' => $payment->id,
+                'details' => [
+                    'booking_id' => $booking->id,
+                    'reference_code' => $booking->reference_code,
+                    'amount_etb' => $amountEtb,
+                    'method' => $validated['payment_method'],
+                    'receipt_number' => $receiptNumber,
+                    'is_advance_deposit' => (bool)($validated['is_advance_deposit'] ?? false),
+                    'outstanding_balance_etb' => $outstanding,
+                ],
+                'ip_address' => $request->ip(),
+                'created_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment successfully recorded and verified.',
+                'payment' => $payment->fresh(['booking.guest', 'booking.room']),
+                'receipt_number' => $receiptNumber,
+                'gross_total_etb' => $grossTotal,
+                'total_paid_etb' => $verifiedPaid,
+                'outstanding_balance_etb' => $outstanding,
+                'payment_status' => $newPaymentStatus,
+            ], 201);
+        });
+    }
+
+    /**
+     * Prevent hard deletion of completed financial transactions.
+     */
+    public function destroy($id)
+    {
+        return response()->json([
+            'error' => 'Completed financial transactions cannot be deleted. Use refund or reversal workflows to ensure audit integrity.'
+        ], 403);
     }
 }

@@ -109,6 +109,16 @@ class Booking extends Model
         return $this->hasMany(Payment::class, 'booking_id', 'id');
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class, 'booking_id', 'id');
+    }
+
+    public function refunds()
+    {
+        return $this->hasMany(Refund::class, 'booking_id', 'id');
+    }
+
     public function serviceCharges()
     {
         return $this->hasMany(BookingServiceCharge::class, 'booking_id', 'id');
@@ -133,7 +143,9 @@ class Booking extends Model
 
     public function getOutstandingBalanceEtbAttribute(): float
     {
-        $verifiedPayments = $this->payments->where('status', 'verified')->sum('amount_etb');
+        $verifiedPayments = $this->payments
+            ->filter(fn($p) => in_array($p->status, ['verified', 'completed']))
+            ->sum(fn($p) => max(0, (float)$p->amount_etb - (float)($p->refunded_amount_etb ?? 0)));
         return max(0, $this->gross_total_etb - (float)$verifiedPayments);
     }
 }
