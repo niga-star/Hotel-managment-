@@ -104,6 +104,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/payments/receipts', [PaymentController::class, 'listReceipts']);
     Route::get('/receipts', [PaymentController::class, 'listReceipts']);
     Route::get('/payments/{id}/receipt', [PaymentController::class, 'getReceipt']);
+    Route::get('/payments/reports', [PaymentController::class, 'financialReports']);
     Route::get('/invoices', [PaymentController::class, 'listInvoices']);
     Route::get('/invoices/{id}', [PaymentController::class, 'showInvoice']);
     Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);

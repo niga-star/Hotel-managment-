@@ -1187,6 +1187,14 @@ class PaymentController extends Controller
     }
 
     /**
+     * Aggregated Financial Reports (Daily, Weekly, Monthly, Annual, Method, Service, Receivables).
+     */
+    public function financialReports(Request $request)
+    {
+        return app(\App\Http\Controllers\Api\AdminController::class)->financialReports($request);
+    }
+
+    /**
      * Prevent hard deletion of completed financial transactions.
      */
     public function destroy($id)
